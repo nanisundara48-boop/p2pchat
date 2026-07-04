@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Chat - Encrypted Realm</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+</head>
+<body>
+
+    <div id="introModal" class="modal-overlay active">
+        <div class="intro-card glow-card">
+            <div id="introIcon" class="intro-icon"><i class="fa-solid fa-user-shield"></i></div>
+            <h2 id="introTitle">Welcome to P2P Chat</h2>
+            <p id="introDesc">Next-Gen decentralized peer-to-peer communication with absolute privacy, hidden vaults, and real-time WebRTC calling.</p>
+            <div class="intro-dots">
+                <span class="dot active"></span><span class="dot"></span><span class="dot"></span>
+            </div>
+            <div class="intro-actions">
+                <button onclick="skipIntro()" class="btn-skip">Skip</button>
+                <button onclick="nextIntro()" class="btn-next">Next <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="permModal" class="modal-overlay">
+        <div class="perm-card">
+            <h3><i class="fa-solid fa-shield-halved text-purple"></i> System Permissions</h3>
+            <p>P2P Chat requires instant access to Camera, Microphone, and Location to activate Glimpse Snaps and HD Video Calls.</p>
+            <div class="perm-list">
+                <div class="perm-item"><i class="fa-solid fa-video text-green"></i> <span>Camera & Mic (WebRTC Calls)</span></div>
+                <div class="perm-item"><i class="fa-solid fa-location-dot text-yellow"></i> <span>Location (Glimpse Geotagging)</span></div>
+                <div class="perm-item"><i class="fa-solid fa-bell text-blue"></i> <span>Push Notifications (Live Alerts)</span></div>
+            </div>
+            <div class="perm-actions">
+                <button onclick="requestAllPermissions()" class="btn-allow">Allow All Access</button>
+                <button onclick="skipPermissions()" class="btn-skip-perm">Skip & Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="authSection" class="auth-wrapper">
+        <div class="auth-bg-glows"></div>
+        <div class="auth-card">
+            <div class="brand-logo"><i class="fa-solid fa-network-wired"></i><span>P2P</span></div>
+            <h2 id="authHeading">Identity Portal</h2>
+            
+            <form id="authForm" onsubmit="handleAuth(event)">
+                <div id="nameGroup" class="input-group hidden">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="userName" placeholder="Full Legal Name" oninput="generateUniqueId()">
+                </div>
+
+                <div id="idPreviewGroup" class="id-preview hidden">
+                    <span>Generated ID:</span>
+                    <strong id="generatedId">@user_0000</strong>
+                    <i class="fa-solid fa-pen edit-id" onclick="editCustomId()"></i>
+                </div>
+
+                <div class="input-group">
+                    <i class="fa-solid fa-envelope"></i>
+                    <input type="email" id="userEmail" placeholder="Email / Custom ID" required>
+                </div>
+
+                <div class="input-group">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="userPass" placeholder="Secret Password" required>
+                </div>
+
+                <div class="face-toggle">
+                    <label><i class="fa-solid fa-camera-rotate text-purple"></i> Biometric Face Lock</label>
+                    <input type="checkbox" id="faceAuthToggle">
+                </div>
+
+                <button type="submit" class="btn-auth" id="authSubmitBtn">Secure Access</button>
+            </form>
+
+            <p class="auth-switch" onclick="toggleAuthMode()" id="authSwitchText">New here? Initialize account setup</p>
+        </div>
+    </div>
+
+    <div id="faceModal" class="modal-overlay">
+        <div class="face-card">
+            <h3><i class="fa-solid fa-eye text-yellow animate-pulse"></i> Scanning Biometrics</h3>
+            <div class="cam-scanner"><video id="webcamStream" autoplay playsinline></video><div class="scan-laser"></div></div>
+            <p id="faceStatusText">Align your face inside the matrix grid...</p>
+            <div id="emailFallbackBox" class="fallback-box hidden">
+                <p>⚠️ Mismatch! Enter Automated Code sent to your Mail:</p>
+                <input type="text" id="securityCodeInput" placeholder="6-Digit OTP" maxlength="6">
+                <button onclick="verifyFallbackCode()" class="btn-verify">Override & Enter</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="appWorkspace" class="workspace hidden">
+        <header class="main-header">
+            <div class="logo-area" onmousedown="startHiddenTimer()" onmouseup="stopHiddenTimer()" ontouchstart="startHiddenTimer()" ontouchend="stopHiddenTimer()">
+                <div id="appLogoIcon" class="logo-badge"><i class="fa-solid fa-cube"></i></div>
+                <span class="logo-text">P2P <small id="hiddenIndicator" class="hidden">🔒 PIN</small></span>
+            </div>
+
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchUsersInput" placeholder="Search user, email or #id..." oninput="searchUsers()">
+                <div id="searchResults" class="search-dropdown hidden"></div>
+            </div>
+
+            <div class="header-actions">
+                <button class="icon-btn" onclick="openNotifications()"><i class="fa-solid fa-bell"></i><span class="badge" id="notifBadge">0</span></button>
+                <div class="user-profile" onclick="openProfileSettings()">
+                    <img id="myDp" src="https://api.dicebear.com/7.x/bottts/svg?seed=P2P" alt="DP">
+                    <span id="myDisplayId" class="status-dot active"></span>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-body">
+            <aside class="sidebar-list">
+                <div class="list-tabs">
+                    <button class="tab-btn active" onclick="switchTab('chats')">Chats</button>
+                    <button class="tab-btn" onclick="switchTab('calls')">Calls (15d)</button>
+                    <button class="tab-btn" onclick="switchTab('groups')">Groups</button>
+                    <button class="tab-btn text-purple" onclick="switchTab('glimpse')">Glimpse ⚡</button>
+                </div>
+                <div id="sidebarContent" class="tab-content-area">
+                </div>
+                <button id="fabBtn" class="fab-btn hidden" onclick="openCreateGroupModal()"><i class="fa-solid fa-plus"></i></button>
+            </aside>
+
+            <section class="chat-room" id="chatRoomArea">
+                <div id="emptyChatState" class="empty-state">
+                    <i class="fa-solid fa-comments text-purple"></i>
+                    <h3>Select a conversation</h3>
+                    <p>Encrypted peer-to-peer messaging with self-destruction timers.</p>
+                </div>
+
+                <div id="activeChatContainer" class="active-chat hidden">
+                    <div class="chat-header">
+                        <div class="peer-info">
+                            <img id="activePeerDp" src="" alt="">
+                            <div>
+                                <h4 id="activePeerName">User</h4>
+                                <span id="activePeerStatus" class="activity-status">Active now</span>
+                            </div>
+                        </div>
+                        <div class="chat-header-icons">
+                            <button onclick="startWebRTCCall(false)"><i class="fa-solid fa-phone"></i></button>
+                            <button onclick="startWebRTCCall(true)"><i class="fa-solid fa-video text-green"></i></button>
+                            <button onclick="openChatSettings()"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                        </div>
+                    </div>
+
+                    <div id="messagesArea" class="messages-container"></div>
+
+                    <div class="chat-input-bar">
+                        <input type="file" id="imageUploadInput" hidden accept="image/*,video/*" onchange="handleMediaUpload(event)">
+                        <button onclick="document.getElementById('imageUploadInput').click()"><i class="fa-solid fa-paperclip"></i></button>
+                        <button onmousedown="startQuickSnap()" onmouseup="stopQuickSnap()"><i class="fa-solid fa-camera"></i></button>
+                        
+                        <div class="input-wrapper">
+                            <input type="text" id="messageInputBox" placeholder="Type a message..." onkeydown="handleEnterSend(event)">
+                            <button id="timerIndicator" class="timer-dot hidden" title="Scheduled Message Active"></button>
+                        </div>
+                        
+                        <button class="send-btn" onmousedown="startTimerHold()" onmouseup="sendMsgAction()"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>made by NL</p>
+        </footer>
+    </div>
+
+    <div id="callModal" class="modal-overlay">
+        <div class="call-card">
+            <div id="callStatusIndicator" class="ring-waves"></div>
+            <img id="callerDp" src="https://api.dicebear.com/7.x/bottts/svg?seed=caller" alt="">
+            <h3 id="callerNameDisplay">Incoming Video Call...</h3>
+            <p id="callQualityBadge" class="quality-tag">HD WebRTC P2P • 1080p</p>
+            
+            <div id="videoCallContainer" class="video-grid hidden">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <video id="localVideo" autoplay playsinline muted onclick="switchVideoPIP()"></video>
+            </div>
+
+            <div class="call-actions">
+                <button id="declineCallBtn" onclick="declineCall()" class="btn-decline"><i class="fa-solid fa-phone-slash"></i> Decline</button>
+                <button id="acceptCallBtn" onclick="acceptCall()" class="btn-accept"><i class="fa-solid fa-phone"></i> Accept</button>
+                <button id="endCallBtn" onclick="endCall()" class="btn-decline hidden"><i class="fa-solid fa-phone-slash"></i> Hang Up</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pinModal" class="modal-overlay">
+        <div class="pin-card">
+            <h3><i class="fa-solid fa-lock text-purple"></i> Hidden Vault</h3>
+            <p>Enter 4-Digit Secret PIN to access private conversations.</p>
+            <input type="password" id="vaultPinInput" maxlength="4" placeholder="••••" oninput="checkVaultPin()">
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
