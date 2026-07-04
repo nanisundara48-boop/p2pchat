@@ -1,0 +1,135 @@
+:root {
+    --bg-dark: #09090b;
+    --card-dark: #18181b;
+    --border-color: #27272a;
+    --purple: #a855f7;
+    --purple-glow: rgba(168, 85, 247, 0.3);
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --text-main: #f4f4f5;
+    --text-muted: #a1a1aa;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+body { background-color: var(--bg-dark); color: var(--text-main); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+.hidden { display: none !important; }
+.text-purple { color: var(--purple); } .text-green { color: var(--green); } .text-yellow { color: var(--yellow); }
+
+/* MODALS OVERLAY */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 1000; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; }
+.modal-overlay.active { display: flex; opacity: 1; }
+.intro-card, .perm-card, .face-card, .pin-card, .call-card { background: var(--card-dark); border: 1px solid var(--border-color); padding: 30px; rounded-2xl; width: 90%; max-width: 420px; border-radius: 20px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+.glow-card { box-shadow: 0 0 40px var(--purple-glow); border-color: var(--purple); }
+.intro-icon { font-size: 48px; color: var(--purple); margin-bottom: 20px; animation: bounce 2s infinite; }
+
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.intro-dots { margin: 20px 0; }
+.dot { display: inline-block; width: 8px; height: 8px; background: #3f3f46; border-radius: 50%; margin: 0 4px; transition: 0.3s; }
+.dot.active { background: var(--purple); width: 24px; border-radius: 10px; }
+.intro-actions, .perm-actions { display: flex; gap: 10px; justify-content: center; margin-top: 25px; }
+button { cursor: pointer; border: none; font-weight: 600; transition: 0.2s; }
+.btn-next, .btn-allow, .btn-auth, .btn-verify { background: var(--purple); color: white; padding: 12px 24px; border-radius: 12px; flex: 1; }
+.btn-next:hover, .btn-allow:hover { background: #9333ea; box-shadow: 0 0 15px var(--purple-glow); }
+.btn-skip, .btn-skip-perm { background: transparent; color: var(--text-muted); padding: 12px 20px; border-radius: 12px; }
+
+/* AUTH PORTAL */
+.auth-wrapper { height: 100vh; display: flex; align-items: center; justify-content: center; position: relative; }
+.auth-bg-glows { position: absolute; width: 300px; height: 300px; background: var(--purple); filter: blur(150px); opacity: 0.15; z-index: 0; }
+.auth-card { background: var(--card-dark); border: 1px solid var(--border-color); padding: 40px; border-radius: 24px; width: 100%; max-width: 400px; z-index: 1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); }
+.brand-logo { font-size: 28px; font-weight: 900; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; }
+.brand-logo i { color: var(--purple); }
+.auth-card h2 { text-align: center; font-size: 18px; color: var(--text-muted); margin-bottom: 25px; }
+.input-group { position: relative; margin-bottom: 15px; }
+.input-group i { position: absolute; left: 15px; top: 16px; color: #52525b; }
+.input-group input, #securityCodeInput, #vaultPinInput { width: 100%; background: #000; border: 1px solid var(--border-color); padding: 14px 14px 14px 45px; border-radius: 12px; color: white; outline: none; transition: 0.3s; }
+.input-group input:focus { border-color: var(--purple); box-shadow: 0 0 10px rgba(168,85,247,0.2); }
+.id-preview { display: flex; justify-content: space-between; align-items: center; background: #000; padding: 12px 15px; border-radius: 12px; border: 1px dashed var(--purple); margin-bottom: 15px; font-size: 13px; }
+.id-preview strong { color: var(--purple); font-family: monospace; font-size: 15px; }
+.face-toggle { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 10px; margin-bottom: 20px; font-size: 13px; }
+.auth-switch { text-align: center; margin-top: 20px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
+.auth-switch:hover { color: var(--purple); }
+
+/* FACE VERIFICATION MATRIX */
+.cam-scanner { width: 200px; height: 200px; border-radius: 50%; border: 3px dashed var(--purple); margin: 20px auto; position: relative; overflow: hidden; background: #000; }
+.cam-scanner video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.scan-laser { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--yellow); box-shadow: 0 0 15px var(--yellow); animation: scan 2s infinite linear; }
+@keyframes scan { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
+
+/* WORKSPACE DASHBOARD */
+.workspace { display: flex; flex-direction: column; height: 100vh; }
+.main-header { height: 65px; background: var(--card-dark); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+.logo-area { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.logo-badge { width: 36px; height: 36px; background: rgba(168,85,247,0.1); border: 1px solid var(--purple); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--purple); font-size: 18px; transition: 0.3s; }
+.logo-text { font-weight: 800; font-size: 20px; letter-spacing: 1px; }
+.search-bar { position: relative; width: 300px; }
+.search-bar input { width: 100%; background: #000; border: 1px solid var(--border-color); padding: 8px 15px 8px 35px; border-radius: 20px; color: white; font-size: 13px; outline: none; }
+.search-bar i { position: absolute; left: 12px; top: 11px; font-size: 12px; color: #52525b; }
+.header-actions { display: flex; align-items: center; gap: 15px; }
+.icon-btn { background: #000; border: 1px solid var(--border-color); width: 38px; height: 38px; border-radius: 50%; color: var(--text-main); position: relative; }
+.badge { position: absolute; top: -5px; right: -5px; background: var(--red); color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; }
+.user-profile { position: relative; cursor: pointer; }
+.user-profile img { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--green); }
+.status-dot { position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; background: var(--green); border-radius: 50%; border: 2px solid #000; }
+
+/* DASHBOARD BODY */
+.dashboard-body { display: flex; flex: 1; overflow: hidden; }
+.sidebar-list { width: 320px; background: #0e0e11; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; position: relative; }
+.list-tabs { display: flex; border-bottom: 1px solid var(--border-color); background: var(--card-dark); }
+.tab-btn { flex: 1; padding: 12px 5px; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 600; border-bottom: 2px solid transparent; }
+.tab-btn.active { color: white; border-bottom-color: var(--purple); }
+.tab-content-area { flex: 1; overflow-y: auto; padding: 10px; }
+.fab-btn { position: absolute; bottom: 20px; right: 20px; width: 45px; height: 45px; background: var(--purple); color: white; border-radius: 50%; font-size: 18px; box-shadow: 0 5px 15px var(--purple-glow); }
+
+/* CHAT ITEMS */
+.chat-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; cursor: pointer; transition: 0.2s; }
+.chat-item:hover, .chat-item.active { background: rgba(255,255,255,0.05); }
+.chat-item img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
+.chat-info { flex: 1; overflow: hidden; }
+.chat-info h5 { font-size: 14px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-info p { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* CHAT ROOM */
+.chat-room { flex: 1; display: flex; flex-direction: column; background: #09090b; position: relative; }
+.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); }
+.empty-state i { font-size: 50px; margin-bottom: 15px; }
+.active-chat { display: flex; flex-direction: column; height: 100%; }
+.chat-header { height: 60px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: rgba(24,24,27,0.5); backdrop-filter: blur(10px); }
+.peer-info { display: flex; align-items: center; gap: 12px; }
+.peer-info img { width: 38px; height: 38px; border-radius: 50%; }
+.activity-status { font-size: 11px; color: var(--green); }
+.chat-header-icons button { background: transparent; color: var(--text-muted); font-size: 16px; margin-left: 15px; }
+.chat-header-icons button:hover { color: white; }
+
+.messages-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.msg-bubble { max-width: 65%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.4; position: relative; animation: slideUp 0.2s ease; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.msg-bubble.sent { align-self: flex-end; background: var(--purple); color: white; border-bottom-right-radius: 4px; }
+.msg-bubble.received { align-self: flex-start; background: var(--card-dark); border: 1px solid var(--border-color); border-bottom-left-radius: 4px; }
+.msg-meta { display: flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 10px; margin-top: 4px; opacity: 0.8; }
+.read-receipt.red { color: var(--red); } .read-receipt.yellow { color: var(--yellow); } .read-receipt.green { color: var(--green); font-weight: bold; }
+
+/* INPUT BAR */
+.chat-input-bar { padding: 15px 20px; background: var(--card-dark); border-top: 1px solid var(--border-color); display: flex; items-center; gap: 12px; }
+.chat-input-bar button { background: transparent; color: var(--text-muted); font-size: 18px; padding: 5px; }
+.chat-input-bar button:hover { color: var(--purple); }
+.input-wrapper { flex: 1; position: relative; display: flex; align-items: center; }
+.input-wrapper input { width: 100%; background: #000; border: 1px solid var(--border-color); padding: 12px 18px; border-radius: 20px; color: white; outline: none; font-size: 14px; }
+.timer-dot { width: 10px; height: 10px; background: var(--yellow); border-radius: 50%; position: absolute; right: 15px; animation: blink 1s infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+.send-btn { background: var(--purple) !important; color: white !important; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px !important; }
+
+/* WEBRTC VIDEO CALL PIP */
+.video-grid { position: relative; width: 100%; height: 260px; background: #000; border-radius: 16px; overflow: hidden; margin: 15px 0; }
+#remoteVideo { width: 100%; height: 100%; object-fit: cover; }
+#localVideo { position: absolute; bottom: 10px; right: 10px; width: 80px; height: 120px; border-radius: 10px; border: 2px solid var(--purple); object-fit: cover; cursor: pointer; z-index: 10; background: #111; }
+.call-actions { display: flex; gap: 15px; justify-content: center; }
+.btn-decline { background: var(--red); color: white; padding: 12px 24px; border-radius: 30px; }
+.btn-accept { background: var(--green); color: white; padding: 12px 24px; border-radius: 30px; animation: pulseGreen 1.5s infinite; }
+@keyframes pulseGreen { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); } 70% { box-shadow: 0 0 0 15px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+.ring-waves { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--purple); margin: 0 auto 15px; animation: waves 2s infinite; }
+@keyframes waves { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+
+/* FOOTER MADE BY NL */
+.app-footer { height: 25px; background: var(--bg-dark); display: flex; align-items: center; justify-content: center; border-top: 1px solid rgba(255,255,255,0.05); }
+.app-footer p { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #3f3f46; }
