@@ -51,7 +51,6 @@ window.playSynthesizedRing = function(type = 'incoming') {
     osc.start();
     osc.stop(audioCtx.currentTime + 0.5);
 }
-
 // ==========================================
 // 2. ONBOARDING INTRO WALKTHROUGH LOGIC (GLOBAL SCOPE)
 // ==========================================
@@ -64,13 +63,13 @@ let currentIntroStep = 0;
 
 window.onload = () => {
     if (!localStorage.getItem("introSeen_NL")) {
-        document.getElementById("introModal").classList.add("active");
+        const modal = document.getElementById("introModal");
+        if(modal) modal.classList.add("active");
     } else {
         window.checkPermissionsAndStart();
     }
 };
 
-// Explicitly attaching to window object so HTML can find them
 window.nextIntro = function() {
     currentIntroStep++;
     if (currentIntroStep >= introSteps.length) {
@@ -87,14 +86,14 @@ window.nextIntro = function() {
         const dots = document.querySelectorAll(".intro-dots .dot");
         dots.forEach((dot, index) => dot.classList.toggle("active", index === currentIntroStep));
     }
-}
+};
 
 window.skipIntro = function() {
     localStorage.setItem("introSeen_NL", "true");
     const modal = document.getElementById("introModal");
     if(modal) modal.classList.remove("active");
     window.checkPermissionsAndStart();
-}
+};
 
 // ==========================================
 // 3. AUTO PERMISSIONS REQUEST ENGINE
@@ -104,22 +103,9 @@ window.checkPermissionsAndStart = function() {
         const permModal = document.getElementById("permModal");
         if(permModal) permModal.classList.add("active");
     } else {
-        window.initAuthListener();
+        if(typeof initAuthListener === "function") initAuthListener();
     }
-}
-    checkPermissionsAndStart();
-}
-
-// ==========================================
-// 3. AUTO PERMISSIONS REQUEST ENGINE
-// ==========================================
-function checkPermissionsAndStart() {
-    if (!localStorage.getItem("permsGranted_NL")) {
-        document.getElementById("permModal").classList.add("active");
-    } else {
-        initAuthListener();
-    }
-}
+};
 
 async function requestAllPermissions() {
     try {
@@ -131,8 +117,9 @@ async function requestAllPermissions() {
         if ("Notification" in window) await Notification.requestPermission();
         
         localStorage.setItem("permsGranted_NL", "true");
-        document.getElementById("permModal").classList.remove("active");
-        initAuthListener();
+        const permModal = document.getElementById("permModal");
+        if(permModal) permModal.classList.remove("active");
+        if(typeof initAuthListener === "function") initAuthListener();
     } catch (err) {
         alert("Permissions partially skipped! Some live features may require manual browser grant later.");
         skipPermissions();
@@ -141,13 +128,17 @@ async function requestAllPermissions() {
 
 function skipPermissions() {
     localStorage.setItem("permsGranted_NL", "true");
-    document.getElementById("permModal").classList.remove("active");
-    initAuthListener();
+    const permModal = document.getElementById("permModal");
+    if(permModal) permModal.classList.remove("active");
+    if(typeof initAuthListener === "function") initAuthListener();
 }
 
 // ==========================================
 // 4. AUTHENTICATION & UNIQUE ID GENERATION
 // ==========================================
+
+
+
 function toggleAuthMode() {
     isSignUpMode = !isSignUpMode;
     document.getElementById("authHeading").innerText = isSignUpMode ? "Create Secret Portal" : "Identity Portal";
