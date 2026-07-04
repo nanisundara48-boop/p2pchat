@@ -1,5 +1,5 @@
 // ==========================================
-// 1. FIREBASE INITIALIZATION & CONFIG
+// 1. FIREBASE INITIALIZATION & CONFIG (SAFE LOAD)
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyBSqoQpLKKKS5FxqQF-MhXsANvlMQFlpp4",
@@ -10,10 +10,17 @@ const firebaseConfig = {
     appId: "1:762729546611:web:5dd03e613c03889b017b06"
 };
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
+let auth, db, storage;
+
+try {
+    firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    storage = firebase.storage();
+    console.log("Firebase loaded successfully!");
+} catch (error) {
+    console.error("Firebase Init Error:", error);
+}
 
 let currentUser = null;
 let currentChatPeer = null;
@@ -24,9 +31,9 @@ let rtcPeerConnection = null;
 let localStream = null;
 let callDocRef = null;
 
-// Ringtones Audio Synthesizer (No external mp3 errors!)
+// Ringtones Audio Synthesizer
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playSynthesizedRing(type = 'incoming') {
+window.playSynthesizedRing = function(type = 'incoming') {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -34,10 +41,10 @@ function playSynthesizedRing(type = 'incoming') {
     gain.connect(audioCtx.destination);
     
     if (type === 'incoming') {
-        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.2); // A5
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); 
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.2); 
     } else {
-        osc.frequency.setValueAtTime(440, audioCtx.currentTime); // Outgoing beep
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime); 
     }
     gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
@@ -46,7 +53,7 @@ function playSynthesizedRing(type = 'incoming') {
 }
 
 // ==========================================
-// 2. ONBOARDING INTRO WALKTHROUGH LOGIC
+// 2. ONBOARDING INTRO WALKTHROUGH LOGIC (GLOBAL SCOPE)
 // ==========================================
 const introSteps = [
     { title: "Welcome to P2P Chat", desc: "Next-Gen decentralized peer-to-peer communication with absolute privacy, hidden vaults, and real-time WebRTC calling.", icon: "fa-user-shield" },
@@ -59,26 +66,47 @@ window.onload = () => {
     if (!localStorage.getItem("introSeen_NL")) {
         document.getElementById("introModal").classList.add("active");
     } else {
-        checkPermissionsAndStart();
+        window.checkPermissionsAndStart();
     }
 };
 
-function nextIntro() {
+// Explicitly attaching to window object so HTML can find them
+window.nextIntro = function() {
     currentIntroStep++;
     if (currentIntroStep >= introSteps.length) {
-        skipIntro();
+        window.skipIntro();
     } else {
-        document.getElementById("introTitle").innerText = introSteps[currentIntroStep].title;
-        document.getElementById("introDesc").innerText = introSteps[currentIntroStep].desc;
-        document.getElementById("introIcon").innerHTML = `<i class="fa-solid ${introSteps[currentIntroStep].icon}"></i>`;
+        const titleEl = document.getElementById("introTitle");
+        const descEl = document.getElementById("introDesc");
+        const iconEl = document.getElementById("introIcon");
+        
+        if(titleEl) titleEl.innerText = introSteps[currentIntroStep].title;
+        if(descEl) descEl.innerText = introSteps[currentIntroStep].desc;
+        if(iconEl) iconEl.innerHTML = `<i class="fa-solid ${introSteps[currentIntroStep].icon}"></i>`;
+        
         const dots = document.querySelectorAll(".intro-dots .dot");
         dots.forEach((dot, index) => dot.classList.toggle("active", index === currentIntroStep));
     }
 }
 
-function skipIntro() {
+window.skipIntro = function() {
     localStorage.setItem("introSeen_NL", "true");
-    document.getElementById("introModal").classList.remove("active");
+    const modal = document.getElementById("introModal");
+    if(modal) modal.classList.remove("active");
+    window.checkPermissionsAndStart();
+}
+
+// ==========================================
+// 3. AUTO PERMISSIONS REQUEST ENGINE
+// ==========================================
+window.checkPermissionsAndStart = function() {
+    if (!localStorage.getItem("permsGranted_NL")) {
+        const permModal = document.getElementById("permModal");
+        if(permModal) permModal.classList.add("active");
+    } else {
+        window.initAuthListener();
+    }
+}
     checkPermissionsAndStart();
 }
 
