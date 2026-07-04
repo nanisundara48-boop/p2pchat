@@ -194,22 +194,52 @@ async function handleAuth(e) {
 }
 
 function startFaceVerification() {
-    document.getElementById("faceModal").classList.add("active");
-    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-        document.getElementById("webcamStream").srcObject = stream;
-        setTimeout(() => {
-            if (Math.random() > 0.3) {
-                stream.getTracks().forEach(track => track.stop());
-                document.getElementById("faceModal").classList.remove("active");
-                alert("Biometrics Matched! Unlocking Vault.");
-                auth.signInWithEmailAndPassword(document.getElementById("userEmail").value, document.getElementById("userPass").value);
-            } else {
-                document.getElementById("faceStatusText").innerText = "Biometric Mismatch! Switching to Mail OTP Fallback.";
-                document.getElementById("emailFallbackBox").classList.remove("hidden");
-            }
-        }, 3000);
-    });
+    const modal = document.getElementById("faceModal");
+    const video = document.getElementById("webcamStream");
+    const statusText = document.getElementById("faceStatusText");
+    
+    modal.classList.add("active");
+    statusText.innerText = "Requesting camera access...";
+
+    // Mobile specific constraints
+    const constraints = {
+        video: {
+            facingMode: "user", // Front camera natively
+            width: { ideal: 640 },
+            height: { ideal: 640 }
+        },
+        audio: false
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then(stream => {
+            video.srcObject = stream;
+            video.muted = true; // Required for mobile autoplay
+            video.play();
+            statusText.innerText = "Align your face inside the matrix grid...";
+            
+            setTimeout(() => {
+                if (Math.random() > 0.3) {
+                    stream.getTracks().forEach(track => track.stop());
+                    modal.classList.remove("active");
+                    alert("✅ Biometrics Matched! Unlocking Vault.");
+                    auth.signInWithEmailAndPassword(
+                        document.getElementById("userEmail").value, 
+                        document.getElementById("userPass").value
+                    );
+                } else {
+                    statusText.innerText = "⚠️ Biometric Mismatch! Switching to Mail OTP Fallback.";
+                    document.getElementById("emailFallbackBox").classList.remove("hidden");
+                }
+            }, 3000);
+        })
+        .catch(err => {
+            console.error("Camera Error:", err);
+            alert("⚠️ Camera Access Denied! Please click the lock icon in Chrome address bar and ALLOW Camera permission.");
+            modal.classList.remove("active");
+        });
 }
+
 
 function verifyFallbackCode() {
     if (document.getElementById("securityCodeInput").value.length === 6) {
