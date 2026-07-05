@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Chat - Encrypted Realm</title>
+    <title>P2P Realm — Encrypted Messenger</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -13,177 +13,142 @@
 </head>
 <body>
 
-    <div id="introModal" class="modal-overlay active">
-        <div class="intro-card glow-card">
-            <div id="introIcon" class="intro-icon"><i class="fa-solid fa-user-shield"></i></div>
-            <h2 id="introTitle">Welcome to P2P Chat</h2>
-            <p id="introDesc">Next-Gen decentralized peer-to-peer communication with absolute privacy, hidden vaults, and real-time WebRTC calling.</p>
-            <div class="intro-dots">
-                <span class="dot active"></span><span class="dot"></span><span class="dot"></span>
-            </div>
-            <div class="intro-actions">
-                <button onclick="skipIntro()" class="btn-skip">Skip</button>
-                <button onclick="nextIntro()" class="btn-next">Next <i class="fa-solid fa-arrow-right"></i></button>
-            </div>
-        </div>
-    </div>
-
-    <div id="permModal" class="modal-overlay">
-        <div class="perm-card">
-            <h3><i class="fa-solid fa-shield-halved text-purple"></i> System Permissions</h3>
-            <p>P2P Chat requires instant access to Camera, Microphone, and Location to activate Glimpse Snaps and HD Video Calls.</p>
-            <div class="perm-list">
-                <div class="perm-item"><i class="fa-solid fa-video text-green"></i> <span>Camera & Mic (WebRTC Calls)</span></div>
-                <div class="perm-item"><i class="fa-solid fa-location-dot text-yellow"></i> <span>Location (Glimpse Geotagging)</span></div>
-                <div class="perm-item"><i class="fa-solid fa-bell text-blue"></i> <span>Push Notifications (Live Alerts)</span></div>
-            </div>
-            <div class="perm-actions">
-                <button onclick="requestAllPermissions()" class="btn-allow">Allow All Access</button>
-                <button onclick="skipPermissions()" class="btn-skip-perm">Skip & Continue</button>
-            </div>
-        </div>
-    </div>
-
     <div id="authSection" class="auth-wrapper">
-        <div class="auth-bg-glows"></div>
         <div class="auth-card">
-            <div class="brand-logo"><i class="fa-solid fa-network-wired"></i><span>P2P</span></div>
-            <h2 id="authHeading">Identity Portal</h2>
+            <div class="brand-header">
+                <div class="brand-logo"><i class="fa-solid fa-shield-halved text-purple"></i></div>
+                <h2>P2P Realm</h2>
+                <p>Enterprise-Grade Encrypted Communication</p>
+            </div>
             
             <form id="authForm" onsubmit="handleAuth(event)">
                 <div id="nameGroup" class="input-group hidden">
-                    <i class="fa-solid fa-user"></i>
-                    <input type="text" id="userName" placeholder="Full Legal Name" oninput="generateUniqueId()">
+                    <label>Full Name</label>
+                    <input type="text" id="userName" placeholder="e.g. Naveen Sundara" oninput="generateUniqueId()">
                 </div>
 
                 <div id="idPreviewGroup" class="id-preview hidden">
-                    <span>Generated ID:</span>
+                    <span>Your Unique Handle:</span>
                     <strong id="generatedId">@user_0000</strong>
-                    <i class="fa-solid fa-pen edit-id" onclick="editCustomId()"></i>
                 </div>
 
                 <div class="input-group">
-                    <i class="fa-solid fa-envelope"></i>
-                    <input type="email" id="userEmail" placeholder="Email / Custom ID" required>
+                    <label>Email Address</label>
+                    <input type="email" id="userEmail" placeholder="name@domain.com" required>
                 </div>
 
                 <div class="input-group">
-                    <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="userPass" placeholder="Secret Password" required>
+                    <label>Password</label>
+                    <input type="password" id="userPass" placeholder="••••••••••••" required>
                 </div>
 
-                <div class="face-toggle">
-                    <label><i class="fa-solid fa-camera-rotate text-purple"></i> Biometric Face Lock</label>
-                    <input type="checkbox" id="faceAuthToggle">
-                </div>
-
-                <button type="submit" class="btn-auth" id="authSubmitBtn">Secure Access</button>
+                <button type="submit" class="btn-primary" id="authSubmitBtn">Sign In</button>
             </form>
-
-            <p class="auth-switch" onclick="toggleAuthMode()" id="authSwitchText">New here? Initialize account setup</p>
-        </div>
-    </div>
-
-    <div id="faceModal" class="modal-overlay">
-        <div class="face-card">
-            <h3><i class="fa-solid fa-eye text-yellow animate-pulse"></i> Scanning Biometrics</h3>
-            <div class="cam-scanner"><video id="webcamStream" autoplay playsinline></video><div class="scan-laser"></div></div>
-            <p id="faceStatusText">Align your face inside the matrix grid...</p>
-            <div id="emailFallbackBox" class="fallback-box hidden">
-                <p>⚠️ Mismatch! Enter Automated Code sent to your Mail:</p>
-                <input type="text" id="securityCodeInput" placeholder="6-Digit OTP" maxlength="6">
-                <button onclick="verifyFallbackCode()" class="btn-verify">Override & Enter</button>
-            </div>
+            <p class="auth-switch" onclick="toggleAuthMode()" id="authSwitchText">Don't have an account? Create one</p>
         </div>
     </div>
 
     <div id="appWorkspace" class="workspace hidden">
-        <header class="main-header">
-            <div class="logo-area" onmousedown="startHiddenTimer()" onmouseup="stopHiddenTimer()" ontouchstart="startHiddenTimer()" ontouchend="stopHiddenTimer()">
-                <div id="appLogoIcon" class="logo-badge"><i class="fa-solid fa-cube"></i></div>
-                <span class="logo-text">P2P <small id="hiddenIndicator" class="hidden">🔒 PIN</small></span>
-            </div>
+        
+        <aside class="sidebar-area" id="sidebarArea">
+            <header class="sidebar-header">
+                <div class="logo-area" onmousedown="startHiddenTimer()" onmouseup="stopHiddenTimer()" ontouchstart="startHiddenTimer()" ontouchend="stopHiddenTimer()">
+                    <div class="logo-icon"><i class="fa-solid fa-layer-group"></i></div>
+                    <span class="logo-text">P2P <span id="hiddenIndicator" class="vault-badge hidden"><i class="fa-solid fa-lock"></i> Vault</span></span>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="switchTab('search')" title="Add New Contact"><i class="fa-solid fa-user-plus"></i></button>
+                    <div class="user-avatar-wrap">
+                        <img id="myDp" src="https://api.dicebear.com/7.x/initials/svg?seed=P2P" alt="ME">
+                        <span class="status-dot"></span>
+                    </div>
+                </div>
+            </header>
 
-            <div class="search-bar">
+            <nav class="nav-tabs">
+                <button class="tab-btn active" onclick="switchTab('chats')"><i class="fa-solid fa-message"></i> Chats</button>
+                <button class="tab-btn" onclick="switchTab('calls')"><i class="fa-solid fa-phone"></i> Calls</button>
+                <button class="tab-btn" onclick="switchTab('glimpse')"><i class="fa-solid fa-bolt text-yellow"></i> Glimpse</button>
+            </nav>
+
+            <div id="searchBarContainer" class="search-box hidden">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="searchUsersInput" placeholder="Search user, email or #id..." oninput="searchUsers()">
-                <div id="searchResults" class="search-dropdown hidden"></div>
+                <input type="text" id="searchInput" placeholder="Search by @uniqueId to add contact..." oninput="searchUsersToAdd()">
             </div>
 
-            <div class="header-actions">
-                <button class="icon-btn" onclick="openNotifications()"><i class="fa-solid fa-bell"></i><span class="badge" id="notifBadge">0</span></button>
-                <div class="user-profile" onclick="openProfileSettings()">
-                    <img id="myDp" src="https://api.dicebear.com/7.x/bottts/svg?seed=P2P" alt="DP">
-                    <span id="myDisplayId" class="status-dot active"></span>
-                </div>
+            <div id="sidebarContent" class="list-content">
+                <div class="empty-state">Loading your conversations...</div>
             </div>
-        </header>
+        </aside>
 
-        <main class="dashboard-body">
-            <aside class="sidebar-list">
-                <div class="list-tabs">
-                    <button class="tab-btn active" onclick="switchTab('chats')">Chats</button>
-                    <button class="tab-btn" onclick="switchTab('calls')">Calls (15d)</button>
-                    <button class="tab-btn" onclick="switchTab('groups')">Groups</button>
-                    <button class="tab-btn text-purple" onclick="switchTab('glimpse')">Glimpse ⚡</button>
-                </div>
-                <div id="sidebarContent" class="tab-content-area">
-                </div>
-                <button id="fabBtn" class="fab-btn hidden" onclick="openCreateGroupModal()"><i class="fa-solid fa-plus"></i></button>
-            </aside>
+        <main class="chat-room-area" id="chatRoomArea">
+            <div id="emptyChatState" class="empty-room-state">
+                <div class="empty-icon"><i class="fa-solid fa-lock text-purple"></i></div>
+                <h3>End-to-End Encrypted Realm</h3>
+                <p>Select a contact from the sidebar to start high-security messaging or WebRTC calling.</p>
+            </div>
 
-            <section class="chat-room" id="chatRoomArea">
-                <div id="emptyChatState" class="empty-state">
-                    <i class="fa-solid fa-comments text-purple"></i>
-                    <h3>Select a conversation</h3>
-                    <p>Encrypted peer-to-peer messaging with self-destruction timers.</p>
-                </div>
-
-                <div id="activeChatContainer" class="active-chat hidden">
-                    <div class="chat-header">
-                        <div class="peer-info">
-                            <img id="activePeerDp" src="" alt="">
-                            <div>
-                                <h4 id="activePeerName">User</h4>
-                                <span id="activePeerStatus" class="activity-status">Active now</span>
-                            </div>
-                        </div>
-                        <div class="chat-header-icons">
-                            <button onclick="startWebRTCCall(false)"><i class="fa-solid fa-phone"></i></button>
-                            <button onclick="startWebRTCCall(true)"><i class="fa-solid fa-video text-green"></i></button>
-                            <button onclick="openChatSettings()"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+            <div id="activeChatContainer" class="active-chat hidden">
+                <header class="chat-header">
+                    <div class="chat-header-left">
+                        <button class="back-btn" onclick="closeChatMobile()"><i class="fa-solid fa-arrow-left"></i></button>
+                        <img id="activePeerDp" src="" alt="">
+                        <div class="peer-details">
+                            <h4 id="activePeerName">Contact Name</h4>
+                            <span id="activePeerStatus" class="status-text">Online</span>
                         </div>
                     </div>
-
-                    <div id="messagesArea" class="messages-container"></div>
-
-                    <div class="chat-input-bar">
-                        <input type="file" id="imageUploadInput" hidden accept="image/*,video/*" onchange="handleMediaUpload(event)">
-                        <button onclick="document.getElementById('imageUploadInput').click()"><i class="fa-solid fa-paperclip"></i></button>
-                        <button onmousedown="startQuickSnap()" onmouseup="stopQuickSnap()"><i class="fa-solid fa-camera"></i></button>
-                        
-                        <div class="input-wrapper">
-                            <input type="text" id="messageInputBox" placeholder="Type a message..." onkeydown="handleEnterSend(event)">
-                            <button id="timerIndicator" class="timer-dot hidden" title="Scheduled Message Active"></button>
-                        </div>
-                        
-                        <button class="send-btn" onmousedown="startTimerHold()" onmouseup="sendMsgAction()"><i class="fa-solid fa-paper-plane"></i></button>
+                    <div class="chat-header-right">
+                        <button onclick="startWebRTCCall(false)" title="Voice Call"><i class="fa-solid fa-phone"></i></button>
+                        <button onclick="startWebRTCCall(true)" title="Video Call"><i class="fa-solid fa-video text-green"></i></button>
+                        <button onclick="toggleSecretChat()" title="Move to Vault"><i class="fa-solid fa-shield-cat"></i></button>
                     </div>
-                </div>
-            </section>
+                </header>
+
+                <div id="messagesArea" class="messages-container"></div>
+
+                <footer class="chat-input-bar">
+                    <input type="file" id="mediaUploadInput" hidden accept="image/*,video/*" onchange="handleMediaUpload(event)">
+                    <button class="icon-btn-ghost" onclick="document.getElementById('mediaUploadInput').click()"><i class="fa-solid fa-paperclip"></i></button>
+                    <button class="icon-btn-ghost" onclick="openGlimpseModal()"><i class="fa-solid fa-camera"></i></button>
+                    
+                    <div class="input-field-wrapper">
+                        <input type="text" id="messageInputBox" placeholder="Write a message..." onkeydown="handleEnterSend(event)">
+                    </div>
+                    
+                    <button class="send-btn" onclick="sendMsgAction()"><i class="fa-solid fa-paper-plane"></i></button>
+                </footer>
+            </div>
         </main>
+    </div>
 
-        <footer class="app-footer">
-            <p>made by NL</p>
-        </footer>
+    <div id="glimpseModal" class="modal-overlay">
+        <div class="glimpse-card">
+            <header class="modal-header">
+                <h3><i class="fa-solid fa-bolt text-yellow"></i> Send Glimpse Snap</h3>
+                <button onclick="closeModal('glimpseModal')"><i class="fa-solid fa-xmark"></i></button>
+            </header>
+            <div class="glimpse-preview-area">
+                <video id="glimpseCamStream" autoplay playsinline muted></video>
+                <div id="glimpseOverlayTags" class="overlay-tags">
+                    <span id="tagTimeDisplay" class="tag-chip hidden"><i class="fa-solid fa-clock"></i> <b id="timeText">12:00 PM</b></span>
+                    <span id="tagLocDisplay" class="tag-chip hidden"><i class="fa-solid fa-location-dot"></i> <b id="locText">Locating...</b></span>
+                </div>
+            </div>
+            <div class="glimpse-controls">
+                <label class="tag-toggle"><input type="checkbox" id="toggleTime" onchange="updateGlimpseTags()"> Add Time Tag</label>
+                <label class="tag-toggle"><input type="checkbox" id="toggleLoc" onchange="updateGlimpseTags()"> Add Exact GPS</label>
+            </div>
+            <button class="btn-primary" onclick="captureAndSendGlimpse()"><i class="fa-solid fa-paper-plane"></i> Send Live Snap</button>
+        </div>
     </div>
 
     <div id="callModal" class="modal-overlay">
         <div class="call-card">
-            <div id="callStatusIndicator" class="ring-waves"></div>
-            <img id="callerDp" src="https://api.dicebear.com/7.x/bottts/svg?seed=caller" alt="">
-            <h3 id="callerNameDisplay">Incoming Video Call...</h3>
-            <p id="callQualityBadge" class="quality-tag">HD WebRTC P2P • 1080p</p>
+            <div id="callStatusWaves" class="ring-waves"></div>
+            <img id="callerDp" src="https://api.dicebear.com/7.x/initials/svg?seed=Call" alt="Caller">
+            <h3 id="callerNameDisplay">Incoming Call...</h3>
+            <span id="callQualityBadge" class="quality-badge">End-to-End Encrypted • WebRTC HD</span>
             
             <div id="videoCallContainer" class="video-grid hidden">
                 <video id="remoteVideo" autoplay playsinline></video>
@@ -191,17 +156,17 @@
             </div>
 
             <div class="call-actions">
-                <button id="declineCallBtn" onclick="declineCall()" class="btn-decline"><i class="fa-solid fa-phone-slash"></i> Decline</button>
-                <button id="acceptCallBtn" onclick="acceptCall()" class="btn-accept"><i class="fa-solid fa-phone"></i> Accept</button>
-                <button id="endCallBtn" onclick="endCall()" class="btn-decline hidden"><i class="fa-solid fa-phone-slash"></i> Hang Up</button>
+                <button id="declineCallBtn" onclick="declineCall()" class="btn-call-decline"><i class="fa-solid fa-phone-slash"></i> Decline</button>
+                <button id="acceptCallBtn" onclick="acceptCall()" class="btn-call-accept"><i class="fa-solid fa-phone"></i> Accept</button>
+                <button id="endCallBtn" onclick="endCall(true)" class="btn-call-decline hidden"><i class="fa-solid fa-phone-slash"></i> Hang Up</button>
             </div>
         </div>
     </div>
 
     <div id="pinModal" class="modal-overlay">
         <div class="pin-card">
-            <h3><i class="fa-solid fa-lock text-purple"></i> Hidden Vault</h3>
-            <p>Enter 4-Digit Secret PIN to access private conversations.</p>
+            <h3><i class="fa-solid fa-lock text-purple"></i> Security Vault</h3>
+            <p>Enter 4-Digit Secret PIN to unlock hidden conversations.</p>
             <input type="password" id="vaultPinInput" maxlength="4" placeholder="••••" oninput="checkVaultPin()">
         </div>
     </div>
