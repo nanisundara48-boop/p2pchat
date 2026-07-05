@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>P2P Realm — Encrypted Messenger</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -18,7 +18,7 @@
             <div class="brand-header">
                 <div class="brand-logo"><i class="fa-solid fa-shield-halved text-purple"></i></div>
                 <h2>P2P Realm</h2>
-                <p>Enterprise-Grade Encrypted Communication</p>
+                <p>Decentralized Encrypted Communication</p>
             </div>
             
             <form id="authForm" onsubmit="handleAuth(event)">
@@ -28,8 +28,8 @@
                 </div>
 
                 <div id="idPreviewGroup" class="id-preview hidden">
-                    <span>Your Unique Handle:</span>
-                    <strong id="generatedId">@user_0000</strong>
+                    <span>Your Realm Handle:</span>
+                    <strong id="generatedId">#user_0000</strong>
                 </div>
 
                 <div class="input-group">
@@ -57,10 +57,15 @@
                     <span class="logo-text">P2P <span id="hiddenIndicator" class="vault-badge hidden"><i class="fa-solid fa-lock"></i> Vault</span></span>
                 </div>
                 <div class="header-actions">
-                    <button class="icon-btn" onclick="switchTab('search')" title="Add New Contact"><i class="fa-solid fa-user-plus"></i></button>
-                    <div class="user-avatar-wrap">
+                    <button class="icon-btn" onclick="switchTab('search')" title="Add Contact"><i class="fa-solid fa-user-plus"></i></button>
+                    <button class="icon-btn relative" onclick="switchTab('notifications')" title="Requests">
+                        <i class="fa-solid fa-bell"></i>
+                        <span id="notifBadge" class="badge-dot hidden">0</span>
+                    </button>
+                    <div class="user-avatar-wrap" onclick="document.getElementById('dpUploadInput').click()" title="Click to change DP">
                         <img id="myDp" src="https://api.dicebear.com/7.x/initials/svg?seed=P2P" alt="ME">
                         <span class="status-dot"></span>
+                        <input type="file" id="dpUploadInput" hidden accept="image/*" onchange="uploadCustomDP(event)">
                     </div>
                 </div>
             </header>
@@ -69,29 +74,35 @@
                 <button class="tab-btn active" onclick="switchTab('chats')"><i class="fa-solid fa-message"></i> Chats</button>
                 <button class="tab-btn" onclick="switchTab('calls')"><i class="fa-solid fa-phone"></i> Calls</button>
                 <button class="tab-btn" onclick="switchTab('glimpse')"><i class="fa-solid fa-bolt text-yellow"></i> Glimpse</button>
+                <button class="tab-btn" onclick="openLiveModal()"><i class="fa-solid fa-tower-broadcast text-red"></i> Live</button>
             </nav>
 
             <div id="searchBarContainer" class="search-box hidden">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="searchInput" placeholder="Search by @uniqueId to add contact..." oninput="searchUsersToAdd()">
+                <input type="text" id="searchInput" placeholder="Search by #uniqueId to send request..." oninput="searchUsersToAdd()">
+            </div>
+
+            <div id="liveBannerArea" class="live-banner hidden" onclick="joinActiveLiveStream()">
+                <span class="pulse-red"></span>
+                <span id="liveBannerText">🔴 Someone is Live! Click to Watch</span>
             </div>
 
             <div id="sidebarContent" class="list-content">
-                <div class="empty-state">Loading your conversations...</div>
+                <div class="empty-state">Loading your realm...</div>
             </div>
         </aside>
 
         <main class="chat-room-area" id="chatRoomArea">
             <div id="emptyChatState" class="empty-room-state">
-                <div class="empty-icon"><i class="fa-solid fa-lock text-purple"></i></div>
+                <div class="empty-icon"><i class="fa-solid fa-shield-cat text-purple"></i></div>
                 <h3>End-to-End Encrypted Realm</h3>
-                <p>Select a contact from the sidebar to start high-security messaging or WebRTC calling.</p>
+                <p>Select a verified contact from the sidebar to start high-security messaging, WebRTC calling, or Live streaming.</p>
             </div>
 
             <div id="activeChatContainer" class="active-chat hidden">
                 <header class="chat-header">
                     <div class="chat-header-left">
-                        <button class="back-btn" onclick="closeChatMobile()"><i class="fa-solid fa-arrow-left"></i></button>
+                        <button class="back-btn" onclick="handleBackButton()"><i class="fa-solid fa-arrow-left"></i></button>
                         <img id="activePeerDp" src="" alt="">
                         <div class="peer-details">
                             <h4 id="activePeerName">Contact Name</h4>
@@ -101,19 +112,19 @@
                     <div class="chat-header-right">
                         <button onclick="startWebRTCCall(false)" title="Voice Call"><i class="fa-solid fa-phone"></i></button>
                         <button onclick="startWebRTCCall(true)" title="Video Call"><i class="fa-solid fa-video text-green"></i></button>
-                        <button onclick="toggleSecretChat()" title="Move to Vault"><i class="fa-solid fa-shield-cat"></i></button>
+                        <button id="secretToggleBtn" onclick="toggleSecretChat()" title="Move to Vault"><i class="fa-solid fa-lock-open"></i></button>
                     </div>
                 </header>
 
                 <div id="messagesArea" class="messages-container"></div>
 
                 <footer class="chat-input-bar">
-                    <input type="file" id="mediaUploadInput" hidden accept="image/*,video/*" onchange="handleMediaUpload(event)">
-                    <button class="icon-btn-ghost" onclick="document.getElementById('mediaUploadInput').click()"><i class="fa-solid fa-paperclip"></i></button>
-                    <button class="icon-btn-ghost" onclick="openGlimpseModal()"><i class="fa-solid fa-camera"></i></button>
+                    <input type="file" id="mediaUploadInput" hidden accept="image/*" onchange="openMediaSendModal(event)">
+                    <button class="icon-btn-ghost" onclick="document.getElementById('mediaUploadInput').click()"><i class="fa-solid fa-image"></i></button>
+                    <button class="icon-btn-ghost" onclick="switchTab('glimpse')"><i class="fa-solid fa-camera text-yellow"></i></button>
                     
                     <div class="input-field-wrapper">
-                        <input type="text" id="messageInputBox" placeholder="Write a message..." onkeydown="handleEnterSend(event)">
+                        <input type="text" id="messageInputBox" placeholder="Write an encrypted message..." onkeydown="handleEnterSend(event)">
                     </div>
                     
                     <button class="send-btn" onclick="sendMsgAction()"><i class="fa-solid fa-paper-plane"></i></button>
@@ -125,21 +136,60 @@
     <div id="glimpseModal" class="modal-overlay">
         <div class="glimpse-card">
             <header class="modal-header">
-                <h3><i class="fa-solid fa-bolt text-yellow"></i> Send Glimpse Snap</h3>
-                <button onclick="closeModal('glimpseModal')"><i class="fa-solid fa-xmark"></i></button>
+                <h3><i class="fa-solid fa-bolt text-yellow"></i> Glimpse Camera</h3>
+                <div class="header-tools">
+                    <button onclick="flipGlimpseCamera()" title="Flip Camera"><i class="fa-solid fa-camera-rotate"></i></button>
+                    <button onclick="closeModal('glimpseModal')"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             </header>
             <div class="glimpse-preview-area">
                 <video id="glimpseCamStream" autoplay playsinline muted></video>
                 <div id="glimpseOverlayTags" class="overlay-tags">
                     <span id="tagTimeDisplay" class="tag-chip hidden"><i class="fa-solid fa-clock"></i> <b id="timeText">12:00 PM</b></span>
                     <span id="tagLocDisplay" class="tag-chip hidden"><i class="fa-solid fa-location-dot"></i> <b id="locText">Locating...</b></span>
+                    <span id="tagCustomDisplay" class="tag-chip custom-tag hidden"><i class="fa-solid fa-tag"></i> <b id="customTagText"></b></span>
                 </div>
             </div>
             <div class="glimpse-controls">
-                <label class="tag-toggle"><input type="checkbox" id="toggleTime" onchange="updateGlimpseTags()"> Add Time Tag</label>
-                <label class="tag-toggle"><input type="checkbox" id="toggleLoc" onchange="updateGlimpseTags()"> Add Exact GPS</label>
+                <label class="tag-toggle"><input type="checkbox" id="toggleTime" onchange="updateGlimpseTags()"> Time</label>
+                <label class="tag-toggle"><input type="checkbox" id="toggleLoc" onchange="updateGlimpseTags()"> GPS Location</label>
             </div>
-            <button class="btn-primary" onclick="captureAndSendGlimpse()"><i class="fa-solid fa-paper-plane"></i> Send Live Snap</button>
+            <div class="custom-tag-input">
+                <input type="text" id="customStickerInput" placeholder="Add custom text / emoji sticker..." oninput="updateGlimpseTags()">
+            </div>
+            <button class="btn-primary mt-2" onclick="captureAndSendGlimpse()"><i class="fa-solid fa-paper-plane"></i> Snap & Send to Chat</button>
+        </div>
+    </div>
+
+    <div id="liveModal" class="modal-overlay">
+        <div class="live-card">
+            <header class="modal-header">
+                <h3><i class="fa-solid fa-tower-broadcast text-red"></i> Start Private Live Stream</h3>
+                <button onclick="closeModal('liveModal')"><i class="fa-solid fa-xmark"></i></button>
+            </header>
+            <p class="sub-text">Select verified friends who can view your broadcast:</p>
+            <div id="liveFriendsSelector" class="friends-selector-list"></div>
+            <div class="live-preview-box">
+                <video id="livePreviewStream" autoplay playsinline muted></video>
+            </div>
+            <button id="startLiveBtnAction" class="btn-danger w-100 mt-2" onclick="initiateLiveBroadcast()"><i class="fa-solid fa-circle text-white"></i> Go Live Now</button>
+        </div>
+    </div>
+
+    <div id="mediaSendModal" class="modal-overlay">
+        <div class="media-send-card">
+            <header class="modal-header">
+                <h3>Send Encrypted Media</h3>
+                <button onclick="closeModal('mediaSendModal')"><i class="fa-solid fa-xmark"></i></button>
+            </header>
+            <div class="media-preview-box">
+                <img id="mediaPreviewImg" src="" alt="">
+            </div>
+            <div class="media-options">
+                <label class="tag-toggle"><input type="checkbox" id="mediaLocToggle"> Attach Exact GPS Coordinates</label>
+                <input type="text" id="mediaCaptionInput" placeholder="Add a caption...">
+            </div>
+            <button class="btn-primary mt-2" onclick="confirmSendMedia()"><i class="fa-solid fa-paper-plane"></i> Send Image</button>
         </div>
     </div>
 
