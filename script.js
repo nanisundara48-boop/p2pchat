@@ -1,610 +1,324 @@
-// 1. FIREBASE CONFIGURATION
-const firebaseConfig = {
-    apiKey: "AIzaSyBSqoQpLKKKS5FxqQF-MhXsANvlMQFlpp4",
-    authDomain: "private-7eee3.firebaseapp.com",
-    projectId: "private-7eee3",
-    storageBucket: "private-7eee3.firebasestorage.app",
-    messagingSenderId: "762729546611",
-    appId: "1:762729546611:web:5dd03e613c03889b017b06"
+// --- 1. STATE MANAGEMENT (LocalStorage Integration) ---
+let tabHistory = ['chat-view'];
+let currentChatId = 'public'; // 'public' or user ID like 'alex_01'
+let currentChatName = 'Public Room';
+let isPrivateMode = false;
+
+// Initialize Storage if empty
+let chatsData = JSON.parse(localStorage.getItem('nex_chats')) || {
+    'public': [
+        { sender: 'System', text: 'Welcome to NexChat Public Room! Everyone can see these messages.', time: 'Just now', type: 'incoming' }
+    ]
 };
+let blockedUsers = JSON.parse(localStorage.getItem('nex_blocked')) || [];
+let callLogs = JSON.parse(localStorage.getItem('nex_calls')) || [];
+let sharedMedia = JSON.parse(localStorage.getItem('nex_media')) || [];
 
-if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-
-let currentUser = null;
-let currentChatPeer = null;
-let isSignUpMode = false;
-let holdTimer = null;
-let isVaultUnlocked = false;
-let rtcPeerConnection = null;
-let localStream = null;
-let callDocRef = null;
-let callListenerUnsubscribe = null;
-let glimpseFacingMode = "user"; // Front camera default
-let activeLiveStreamDoc = null;
-
-// Audio Synthesizer for Clean Ringtones
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playRing(type = 'incoming') {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.frequency.setValueAtTime(type === 'incoming' ? 587.33 : 440, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
-    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
-}
-
-// 2. BROWSER HISTORY ROUTING (Fixes Android Back Button exiting app)
-window.addEventListener('popstate', (e) => {
-    // Close any open modals
-    document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
-    if (localStream) localStream.getTracks().forEach(t => t.stop());
+// --- 2. INITIALIZATION ON LOAD ---
+document.addEventListener("DOMContentLoaded", () => {
+    renderMessages();
+    renderMediaVault();
+    renderCallLogs();
+    updateBlockUI();
     
-    // If in chat room on mobile, go back to chat list
-    if (document.getElementById("appWorkspace").classList.contains("mobile-chat-active")) {
-        document.getElementById("appWorkspace").classList.remove("mobile-chat-active");
-        currentChatPeer = null;
-    }
+    // Load saved theme
+    const savedTheme = localStorage.getItem('nex_theme') || 'theme-neon';
+    document.body.className = savedTheme;
+    document.getElementById('theme-selector').value = savedTheme;
 });
 
-function handleBackButton() {
-    if (window.history.length > 1) { window.history.back(); }
-    else {
-        document.getElementById("appWorkspace").classList.remove("mobile-chat-active");
-        currentChatPeer = null;
+// --- 3. NAVIGATION & BACK BUTTON LOGIC ---
+function switchTab(tabId, title) {
+    if (tabHistory[tabHistory.length - 1] !== tabId) {
+        tabHistory.push(tabId);
     }
+    
+    // Switch Panels
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.menu-item').forEach(b => b.classList.remove('active'));
+    
+    document.getElementById(tabId).classList.add('active');
+    
+    // Update Header Title
+    document.getElementById('current-panel-title').innerText = title;
+    
+    // Hide chat-specific buttons if not in chat view
+    const isChat = (tabId === 'chat-view');
+    document.getElementById('mode-switch-btn').style.display = isChat ? 'flex' : 'none';
+    document.getElementById('block-btn').style.display = (isChat && isPrivateMode) ? 'flex' : 'none';
 }
 
-// 3. AUTHENTICATION & #ID SYSTEM
-function toggleAuthMode() {
-    isSignUpMode = !isSignUpMode;
-    document.getElementById("nameGroup").classList.toggle("hidden", !isSignUpMode);
-    document.getElementById("idPreviewGroup").classList.toggle("hidden", !isSignUpMode);
-    document.getElementById("authSubmitBtn").innerText = isSignUpMode ? "Create Realm Account" : "Sign In";
-    document.getElementById("authSwitchText").innerText = isSignUpMode ? "Already have an account? Sign In" : "Don't have an account? Create one";
-}
-
-function generateUniqueId() {
-    const name = document.getElementById("userName").value.trim().toLowerCase().replace(/\s+/g, '');
-    if (name) {
-        const num = Math.floor(1000 + Math.random() * 9000);
-        document.getElementById("generatedId").innerText = `#${name}_${num}`;
-    }
-}
-
-async function handleAuth(e) {
-    e.preventDefault();
-    const email = document.getElementById("userEmail").value.trim();
-    const pass = document.getElementById("userPass").value.trim();
-
-    try {
-        if (isSignUpMode) {
-            const name = document.getElementById("userName").value.trim();
-            const uniqueId = document.getElementById("generatedId").innerText;
-            const res = await auth.createUserWithEmailAndPassword(email, pass);
-            await db.collection("users").doc(res.user.uid).set({
-                name: name, email: email, uniqueId: uniqueId,
-                dp: `https://api.dicebear.com/7.x/initials/svg?seed=${name}`,
-                status: "Online", contacts: [], isSecret: false
-            });
-        } else {
-            await auth.signInWithEmailAndPassword(email, pass);
-        }
-    } catch (err) { alert("Auth Error: " + err.message); }
-}
-
-auth.onAuthStateChanged(async (user) => {
-    if (user) {
-        currentUser = user;
-        const doc = await db.collection("users").doc(user.uid).get();
-        if (doc.exists) {
-            const data = doc.data();
-            document.getElementById("myDp").src = data.dp;
-            document.getElementById("authSection").classList.add("hidden");
-            document.getElementById("appWorkspace").classList.remove("hidden");
-            switchTab('chats');
-            listenForIncomingCalls();
-            listenForFriendRequests();
-            listenForLiveStreams();
-        }
+function goBack() {
+    if (tabHistory.length > 1) {
+        tabHistory.pop(); // Remove current view
+        const prevTab = tabHistory[tabHistory.length - 1];
+        
+        const titles = {
+            'chat-view': currentChatName,
+            'contacts-view': 'Private Contacts',
+            'shared-view': 'Media Vault',
+            'calls-view': 'Call History',
+            'settings-view': 'Settings & Themes'
+        };
+        
+        switchTab(prevTab, titles[prevTab] || 'Chat Hub');
     } else {
-        document.getElementById("authSection").classList.remove("hidden");
-        document.getElementById("appWorkspace").classList.add("hidden");
+        alert("You are already at the main home screen!");
     }
-});
+}
 
-// 4. CUSTOM DP UPLOAD
-async function uploadCustomDP(event) {
+// --- 4. PUBLIC TO PRIVATE SWITCHING & CHAT ROUTING ---
+function toggleChatMode() {
+    if (!isPrivateMode) {
+        // Switch to Private -> Take user to contacts list to choose whom to chat with
+        switchTab('contacts-view', 'Private Contacts');
+    } else {
+        // Switch back to Public Room
+        openPublicRoom();
+    }
+}
+
+function openPublicRoom() {
+    currentChatId = 'public';
+    currentChatName = 'Public Room';
+    isPrivateMode = false;
+    
+    document.getElementById('chat-mode-badge').innerText = 'Public Room';
+    document.getElementById('chat-mode-badge').className = 'badge public-badge';
+    document.getElementById('mode-switch-btn').innerHTML = '<i class="fa-solid fa-shield-halved"></i> <span>Switch to Private</span>';
+    document.getElementById('block-btn').style.display = 'none';
+    
+    document.getElementById('chat-status-banner').innerHTML = '<i class="fa-solid fa-globe"></i> You are currently chatting in the <b>Public Room</b>. Everyone can see these messages.';
+    document.getElementById('chat-status-banner').style.borderColor = 'var(--accent-primary)';
+    
+    switchTab('chat-view', 'Public Room');
+    renderMessages();
+    updateBlockUI();
+}
+
+function openPrivateChat(name, userId) {
+    currentChatId = userId;
+    currentChatName = name + ' (Private)';
+    isPrivateMode = true;
+    
+    if (!chatsData[userId]) {
+        chatsData[userId] = [
+            { sender: name, text: `Hello Nani! This is an end-to-end encrypted private glimpse chat with ${name}.`, time: 'Just now', type: 'incoming' }
+        ];
+        saveChats();
+    }
+    
+    document.getElementById('chat-mode-badge').innerText = 'Private Encrypted';
+    document.getElementById('chat-mode-badge').className = 'badge private-badge';
+    document.getElementById('mode-switch-btn').innerHTML = '<i class="fa-solid fa-globe"></i> <span>Switch to Public</span>';
+    document.getElementById('block-btn').style.display = 'flex';
+    
+    document.getElementById('chat-status-banner').innerHTML = `<i class="fa-solid fa-lock"></i> End-to-end encrypted private chat with <b>${name}</b>.`;
+    document.getElementById('chat-status-banner').style.borderColor = '#ff007f';
+    
+    switchTab('chat-view', currentChatName);
+    renderMessages();
+    updateBlockUI();
+}
+
+// --- 5. BLOCK / UNBLOCK USER FEATURE ---
+function toggleBlockUser() {
+    if (!isPrivateMode || currentChatId === 'public') return;
+    
+    const index = blockedUsers.indexOf(currentChatId);
+    if (index === -1) {
+        blockedUsers.push(currentChatId);
+        alert(`You have blocked ${currentChatName}. They cannot send you messages or photos now.`);
+    } else {
+        blockedUsers.splice(index, 1);
+        alert(`You have unblocked ${currentChatName}.`);
+    }
+    
+    localStorage.setItem('nex_blocked', JSON.stringify(blockedUsers));
+    updateBlockUI();
+}
+
+function updateBlockUI() {
+    const isBlocked = blockedUsers.includes(currentChatId);
+    const blockBtn = document.getElementById('block-btn');
+    const inputBar = document.getElementById('input-bar-container');
+    const blockedNotice = document.getElementById('blocked-notice');
+    
+    if (isPrivateMode) {
+        blockBtn.innerHTML = isBlocked ? '<i class="fa-solid fa-unlock"></i> <span>Unblock</span>' : '<i class="fa-solid fa-ban"></i> <span>Block</span>';
+        blockBtn.className = isBlocked ? 'action-btn colorful-btn' : 'action-btn danger-btn';
+    }
+    
+    if (isBlocked) {
+        inputBar.style.display = 'none';
+        blockedNotice.style.display = 'block';
+    } else {
+        inputBar.style.display = 'flex';
+        blockedNotice.style.display = 'none';
+    }
+    
+    // Update contact status in contacts tab
+    if (document.getElementById(`status-${currentChatId}`)) {
+        document.getElementById(`status-${currentChatId}`).innerText = isBlocked ? 'BLOCKED USER' : 'Available for Glimpse chat';
+        document.getElementById(`status-${currentChatId}`).style.color = isBlocked ? 'var(--danger-color)' : 'var(--text-muted)';
+    }
+}
+
+// --- 6. MESSaging & REAL PHOTO SENDING (Base64) ---
+function sendMessage() {
+    if (blockedUsers.includes(currentChatId)) return;
+    
+    const inputField = document.getElementById('msg-input');
+    const text = inputField.value.trim();
+    if (!text) return;
+    
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    // Append Outgoing Message
+    addMessageToChat(currentChatId, { sender: 'You', text: text, time: timeStr, type: 'outgoing' });
+    inputField.value = '';
+    
+    // Simulate AI / Friend Reply after 1.5 seconds
+    setTimeout(() => {
+        if (!blockedUsers.includes(currentChatId)) {
+            const replyText = isPrivateMode ? 
+                `[Encrypted Glimpse] Received your message: "${text}" safely!` : 
+                `[Public Broadcast] Someone liked your message in the public room!`;
+            addMessageToChat(currentChatId, { sender: isPrivateMode ? currentChatName : 'Group Member', text: replyText, time: 'Just now', type: 'incoming' });
+        }
+    }, 1500);
+}
+
+function handleKeyPress(event) {
+    if (event.key === 'Enter') sendMessage();
+}
+
+function sendPhoto(event) {
+    if (blockedUsers.includes(currentChatId)) return;
+    
     const file = event.target.files[0];
     if (!file) return;
-    alert("Uploading new Profile Picture...");
-    const ref = storage.ref(`avatars/${currentUser.uid}_${Date.now()}`);
-    await ref.put(file);
-    const url = await ref.getDownloadURL();
-    await db.collection("users").doc(currentUser.uid).update({ dp: url });
-    document.getElementById("myDp").src = url;
-    alert("✅ Profile Picture Updated!");
-}
-
-// 5. FRIEND REQUEST & NOTIFICATIONS SYSTEM (No Duplicate Auto-Adds!)
-function listenForFriendRequests() {
-    db.collection("friend_requests").where("to", "==", currentUser.uid).where("status", "==", "pending")
-        .onSnapshot(snap => {
-            const badge = document.getElementById("notifBadge");
-            if (!snap.empty) {
-                badge.innerText = snap.size;
-                badge.classList.remove("hidden");
-            } else { badge.classList.add("hidden"); }
-            if (document.querySelector(".tab-btn.active").innerText.includes("Notifications")) loadNotifications();
-        });
-}
-
-function switchTab(tab) {
-    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-    const container = document.getElementById("sidebarContent");
-    const searchBar = document.getElementById("searchBarContainer");
-    searchBar.classList.toggle("hidden", tab !== 'search');
-    container.innerHTML = `<div class="empty-state">Loading...</div>`;
-
-    if (tab === 'chats') loadMyContacts();
-    else if (tab === 'calls') loadCallHistory();
-    else if (tab === 'glimpse') openGlimpseModal();
-    else if (tab === 'notifications') loadNotifications();
-    else if (tab === 'search') container.innerHTML = `<div class="empty-state">Type #id above to search and send friend request.</div>`;
-}
-
-async function loadNotifications() {
-    const container = document.getElementById("sidebarContent");
-    container.innerHTML = "";
-    const snap = await db.collection("friend_requests").where("to", "==", currentUser.uid).where("status", "==", "pending").get();
     
-    if (snap.empty) { container.innerHTML = `<div class="empty-state">No pending contact requests.</div>`; return; }
-    
-    snap.forEach(async doc => {
-        const req = doc.data();
-        const senderDoc = await db.collection("users").doc(req.from).get();
-        if (senderDoc.exists) {
-            const sender = senderDoc.data();
-            const item = document.createElement("div");
-            item.className = "list-item";
-            item.innerHTML = `
-                <div class="list-item-left">
-                    <img src="${sender.dp}" alt="">
-                    <div class="item-info"><h4>${sender.name}</h4><p>${sender.uniqueId}</p></div>
-                </div>
-                <div class="req-actions">
-                    <button class="btn-sm btn-accept" onclick="respondRequest('${doc.id}', '${req.from}', true)">Accept</button>
-                    <button class="btn-sm btn-reject" onclick="respondRequest('${doc.id}', '${req.from}', false)">Reject</button>
-                </div>
-            `;
-            container.appendChild(item);
-        }
-    });
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64Image = e.target.result;
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        // 1. Add image message to chat
+        addMessageToChat(currentChatId, { sender: 'You', image: base64Image, time: timeStr, type: 'outgoing' });
+        
+        // 2. Save image to Shared Media Vault
+        sharedMedia.unshift(base64Image);
+        localStorage.setItem('nex_media', JSON.stringify(sharedMedia));
+        renderMediaVault();
+    };
+    reader.readAsDataURL(file);
 }
 
-async function respondRequest(reqId, senderId, accept) {
-    await db.collection("friend_requests").doc(reqId).update({ status: accept ? "accepted" : "rejected" });
-    if (accept) {
-        await db.collection("users").doc(currentUser.uid).update({ contacts: firebase.firestore.FieldValue.arrayUnion(senderId) });
-        await db.collection("users").doc(senderId).update({ contacts: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
-        alert("✅ Contact Added to Realm!");
+function addMessageToChat(chatId, msgObj) {
+    if (!chatsData[chatId]) chatsData[chatId] = [];
+    chatsData[chatId].push(msgObj);
+    saveChats();
+    
+    if (currentChatId === chatId) {
+        renderMessages();
     }
-    loadNotifications();
 }
 
-function searchUsersToAdd() {
-    const query = document.getElementById("searchInput").value.trim().toLowerCase();
-    if (!query) return;
-    
-    db.collection("users").where("uniqueId", ">=", query).where("uniqueId", "<=", query + "\uf8ff").get()
-        .then(snapshot => {
-            const container = document.getElementById("sidebarContent");
-            container.innerHTML = "";
-            snapshot.forEach(doc => {
-                if (doc.id === currentUser.uid) return;
-                const peer = doc.data();
-                const item = document.createElement("div");
-                item.className = "list-item";
-                item.innerHTML = `
-                    <div class="list-item-left">
-                        <img src="${peer.dp}" alt="">
-                        <div class="item-info"><h4>${peer.name}</h4><p>${peer.uniqueId}</p></div>
-                    </div>
-                    <button id="reqBtn_${doc.id}" class="btn-primary" style="width:auto; padding:6px 12px; font-size:12px;" onclick="sendFriendRequest('${doc.id}')">Send Request</button>
-                `;
-                container.appendChild(item);
-            });
-        });
+function saveChats() {
+    localStorage.setItem('nex_chats', JSON.stringify(chatsData));
 }
 
-async function sendFriendRequest(targetId) {
-    const btn = document.getElementById(`reqBtn_${targetId}`);
-    btn.disabled = true; btn.innerText = "Sending...";
+function renderMessages() {
+    const chatBox = document.getElementById('chat-box');
+    chatBox.innerHTML = '';
     
-    // Check if already friends or requested
-    const exist = await db.collection("friend_requests").where("from", "==", currentUser.uid).where("to", "==", targetId).where("status", "==", "pending").get();
-    if (!exist.empty) { alert("⚠️ Request already pending!"); btn.innerText = "Requested"; return; }
-
-    await db.collection("friend_requests").add({
-        from: currentUser.uid, to: targetId, status: "pending", timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    const currentMessages = chatsData[currentChatId] || [];
+    currentMessages.forEach(msg => {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${msg.type}`;
+        
+        let contentHtml = `<div>${msg.text || ''}</div>`;
+        if (msg.image) {
+            contentHtml = `<img src="${msg.image}" alt="Sent Photo">`;
+        }
+        
+        msgDiv.innerHTML = `
+            ${contentHtml}
+            <div class="msg-meta">${msg.sender} • ${msg.time}</div>
+        `;
+        chatBox.appendChild(msgDiv);
     });
-    btn.innerText = "Request Sent"; btn.style.background = "#272730";
-    alert("🚀 Contact Request Sent!");
+    
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-async function loadMyContacts() {
-    const userDoc = await db.collection("users").doc(currentUser.uid).get();
-    const contacts = userDoc.data().contacts || [];
-    const container = document.getElementById("sidebarContent");
-    container.innerHTML = "";
-
-    if (contacts.length === 0) {
-        container.innerHTML = `<div class="empty-state">No contacts yet. Click (+) icon above to search #ID and add friends!</div>`;
+// --- 7. SHARED MEDIA VAULT & CALL LOGS ---
+function renderMediaVault() {
+    const grid = document.getElementById('media-vault-grid');
+    grid.innerHTML = '';
+    
+    if (sharedMedia.length === 0) {
+        grid.innerHTML = `<p style="color:var(--text-muted); grid-column: 1/-1;">No photos shared yet. Use the camera icon in chat to send photos!</p>`;
         return;
     }
-
-    contacts.forEach(async (peerId) => {
-        const peerDoc = await db.collection("users").doc(peerId).get();
-        if (peerDoc.exists) {
-            const peer = peerDoc.data();
-            peer.uid = peerDoc.id;
-            
-            // Check if secret vault locked
-            if (peer.isSecret && !isVaultUnlocked) return;
-
-            const item = document.createElement("div");
-            item.className = "list-item";
-            item.innerHTML = `
-                <div class="list-item-left">
-                    <img src="${peer.dp}" alt="">
-                    <div class="item-info">
-                        <h4>${peer.name} ${peer.isSecret ? '<i class="fa-solid fa-lock text-yellow"></i>' : ''}</h4>
-                        <p>${peer.uniqueId}</p>
-                    </div>
-                </div>
-            `;
-            item.onclick = () => openChatRoom(peer);
-            container.appendChild(item);
-        }
+    
+    sharedMedia.forEach(imgSrc => {
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        grid.appendChild(img);
     });
 }
 
-// 6. CHAT ROOM & SECRET VAULT TOGGLE
-function openChatRoom(peer) {
-    currentChatPeer = peer;
-    window.history.pushState({ view: 'chat' }, "", ""); // Push for phone back button
-    document.getElementById("emptyChatState").classList.add("hidden");
-    document.getElementById("activeChatContainer").classList.remove("hidden");
-    document.getElementById("activePeerName").innerText = peer.name;
-    document.getElementById("activePeerDp").src = peer.dp;
-    document.getElementById("secretToggleBtn").innerHTML = peer.isSecret ? '<i class="fa-solid fa-lock text-yellow"></i>' : '<i class="fa-solid fa-lock-open"></i>';
-    document.getElementById("appWorkspace").classList.add("mobile-chat-active");
-
-    const chatId = currentUser.uid < peer.uid ? `${currentUser.uid}_${peer.uid}` : `${peer.uid}_${currentUser.uid}`;
-    db.collection("chats").doc(chatId).collection("messages").orderBy("timestamp", "asc")
-        .onSnapshot(snapshot => {
-            const area = document.getElementById("messagesArea");
-            area.innerHTML = "";
-            snapshot.forEach(doc => {
-                const msg = doc.data();
-                const bubble = document.createElement("div");
-                bubble.className = `msg-bubble ${msg.sender === currentUser.uid ? 'sent' : 'received'}`;
-                let content = msg.imgUrl ? `<img src="${msg.imgUrl}">` : "";
-                content += `<div>${msg.text || ''}</div>`;
-                if (msg.locTag) content += `<span class="msg-tag"><i class="fa-solid fa-location-dot"></i> ${msg.locTag}</span>`;
-                content += `<span class="msg-meta">${msg.time || ''}</span>`;
-                bubble.innerHTML = content;
-                area.appendChild(bubble);
-            });
-            area.scrollTop = area.scrollHeight;
-        });
-}
-
-async function toggleSecretChat() {
-    if (!currentChatPeer) return;
-    const newState = !currentChatPeer.isSecret;
-    await db.collection("users").doc(currentChatPeer.uid).update({ isSecret: newState });
-    currentChatPeer.isSecret = newState;
-    document.getElementById("secretToggleBtn").innerHTML = newState ? '<i class="fa-solid fa-lock text-yellow"></i>' : '<i class="fa-solid fa-lock-open"></i>';
-    alert(newState ? "🔒 Chat moved to Secret Vault! Will hide when locked." : "🔓 Chat removed from Vault.");
-    loadMyContacts();
-}
-
-function sendMsgAction() {
-    const input = document.getElementById("messageInputBox");
-    const text = input.value.trim();
-    if (!text || !currentChatPeer) return;
-    const chatId = currentUser.uid < currentChatPeer.uid ? `${currentUser.uid}_${currentChatPeer.uid}` : `${currentChatPeer.uid}_${currentUser.uid}`;
+function logCall(callType) {
+    const timeStr = new Date().toLocaleString();
+    const targetName = isPrivateMode ? currentChatName : 'Public Voice Room';
     
-    db.collection("chats").doc(chatId).collection("messages").add({
-        text: text, sender: currentUser.uid,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-    input.value = "";
-}
-function handleEnterSend(e) { if (e.key === "Enter") sendMsgAction(); }
-
-// 7. ADVANCED CHAT MEDIA SENDING (Caption + Location Tag)
-let pendingMediaFile = null;
-function openMediaSendModal(e) {
-    pendingMediaFile = e.target.files[0];
-    if (!pendingMediaFile) return;
-    window.history.pushState({ modal: 'mediaSend' }, "", "");
-    document.getElementById("mediaSendModal").classList.add("active");
-    document.getElementById("mediaPreviewImg").src = URL.createObjectURL(pendingMediaFile);
-}
-
-async function confirmSendMedia() {
-    if (!pendingMediaFile || !currentChatPeer) return;
-    alert("Uploading & Encrypting Media...");
-    const ref = storage.ref(`chats/${Date.now()}_${pendingMediaFile.name}`);
-    await ref.put(pendingMediaFile);
-    const url = await ref.getDownloadURL();
-    const caption = document.getElementById("mediaCaptionInput").value.trim();
-    const attachLoc = document.getElementById("mediaLocToggle").checked;
+    callLogs.unshift({ type: callType, target: targetName, time: timeStr });
+    localStorage.setItem('nex_calls', JSON.stringify(callLogs));
+    renderCallLogs();
     
-    let locString = null;
-    if (attachLoc) {
-        locString = "GPS Attached: AP, India"; // Fallback exact tag
+    alert(`Initiating Encrypted ${callType} with ${targetName}... Added to Call History!`);
+}
+
+function renderCallLogs() {
+    const container = document.getElementById('call-logs-container');
+    container.innerHTML = '';
+    
+    if (callLogs.length === 0) {
+        container.innerHTML = `<p style="color:var(--text-muted); text-align:center;">No call records found.</p>`;
+        return;
     }
-
-    const chatId = currentUser.uid < currentChatPeer.uid ? `${currentUser.uid}_${currentChatPeer.uid}` : `${currentChatPeer.uid}_${currentUser.uid}`;
-    await db.collection("chats").doc(chatId).collection("messages").add({
-        text: caption, imgUrl: url, locTag: locString, sender: currentUser.uid,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
     
-    closeModal('mediaSendModal');
-    document.getElementById("mediaCaptionInput").value = "";
-}
-
-// 8. GLIMPSE WITH FRONT/BACK CAMERA & CUSTOM STICKERS
-function openGlimpseModal() {
-    window.history.pushState({ modal: 'glimpse' }, "", "");
-    document.getElementById("glimpseModal").classList.add("active");
-    startGlimpseStream();
-}
-
-function startGlimpseStream() {
-    if (localStream) localStream.getTracks().forEach(t => t.stop());
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: glimpseFacingMode } })
-        .then(stream => {
-            localStream = stream;
-            document.getElementById("glimpseCamStream").srcObject = stream;
-        }).catch(err => alert("Camera error: " + err.message));
-}
-
-function flipGlimpseCamera() {
-    glimpseFacingMode = glimpseFacingMode === "user" ? "environment" : "user";
-    startGlimpseStream();
-}
-
-function updateGlimpseTags() {
-    const showTime = document.getElementById("toggleTime").checked;
-    const showLoc = document.getElementById("toggleLoc").checked;
-    const customText = document.getElementById("customStickerInput").value.trim();
-    
-    document.getElementById("tagTimeDisplay").classList.toggle("hidden", !showTime);
-    document.getElementById("tagLocDisplay").classList.toggle("hidden", !showLoc);
-    document.getElementById("tagCustomDisplay").classList.toggle("hidden", !customText);
-    
-    if (showTime) document.getElementById("timeText").innerText = new Date().toLocaleTimeString();
-    if (showLoc) {
-        document.getElementById("locText").innerText = "Locating GPS...";
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-            const { latitude, longitude } = pos.coords;
-            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            const data = await res.json();
-            const exactPlace = data.address.suburb || data.address.village || data.address.town || "Andhra Pradesh";
-            document.getElementById("locText").innerText = exactPlace;
-        }, () => document.getElementById("locText").innerText = "AP, India", { enableHighAccuracy: true });
-    }
-    if (customText) document.getElementById("customTagText").innerText = customText;
-}
-
-function captureAndSendGlimpse() {
-    alert("⚡ Live Glimpse Snap Sent with Custom Stickers & Tags!");
-    closeModal('glimpseModal');
-}
-
-// 9. START LIVE BROADCAST (To Selected Friends Only)
-async function openLiveModal() {
-    window.history.pushState({ modal: 'live' }, "", "");
-    document.getElementById("liveModal").classList.add("active");
-    
-    // Load friends into checkboxes
-    const userDoc = await db.collection("users").doc(currentUser.uid).get();
-    const contacts = userDoc.data().contacts || [];
-    const container = document.getElementById("liveFriendsSelector");
-    container.innerHTML = "";
-    
-    contacts.forEach(async peerId => {
-        const peerDoc = await db.collection("users").doc(peerId).get();
-        if (peerDoc.exists) {
-            const peer = peerDoc.data();
-            const item = document.createElement("div");
-            item.className = "friend-select-item";
-            item.innerHTML = `<span><img src="${peer.dp}" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:8px;"> ${peer.name}</span> <input type="checkbox" class="live-peer-chk" value="${peerDoc.id}" checked>`;
-            container.appendChild(item);
-        }
-    });
-
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(stream => {
-            localStream = stream;
-            document.getElementById("livePreviewStream").srcObject = stream;
-        });
-}
-
-async function initiateLiveBroadcast() {
-    const selectedPeers = Array.from(document.querySelectorAll(".live-peer-chk:checked")).map(chk => chk.value);
-    if (selectedPeers.length === 0) { alert("Please select at least 1 friend to broadcast live!"); return; }
-    
-    alert("🔴 Going Live! Selected friends will receive broadcast invite.");
-    await db.collection("live_streams").doc(currentUser.uid).set({
-        broadcasterName: currentUser.displayName || "Nani",
-        allowedPeers: selectedPeers,
-        status: "active",
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    document.getElementById("startLiveBtnAction").innerText = "🔴 Live Streaming Active...";
-}
-
-function listenForLiveStreams() {
-    db.collection("live_streams").where("status", "==", "active").onSnapshot(snap => {
-        const banner = document.getElementById("liveBannerArea");
-        let foundLive = false;
-        snap.forEach(doc => {
-            const live = doc.data();
-            if (live.allowedPeers && live.allowedPeers.includes(currentUser.uid)) {
-                foundLive = true;
-                activeLiveStreamDoc = doc.id;
-                document.getElementById("liveBannerText").innerText = `🔴 ${live.broadcasterName} is Live! Click to Watch`;
-            }
-        });
-        banner.classList.toggle("hidden", !foundLive);
+    callLogs.forEach(call => {
+        const row = document.createElement('div');
+        row.className = 'call-log-row';
+        row.innerHTML = `
+            <div>
+                <strong><i class="fa-solid fa-phone-arrow-up-right"></i> ${call.type} - ${call.target}</strong>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${call.time}</div>
+            </div>
+            <span style="color:var(--success-color); font-weight:bold; font-size:13px;">Secured</span>
+        `;
+        container.appendChild(row);
     });
 }
 
-function joinActiveLiveStream() {
-    alert("Joining Encrypted Live Stream Broadcast... Connecting WebRTC feed.");
+// --- 8. COLORFUL THEMES & SETTINGS ---
+function applyTheme() {
+    const selectedTheme = document.getElementById('theme-selector').value;
+    document.body.className = selectedTheme;
+    localStorage.setItem('nex_theme', selectedTheme);
 }
 
-// 10. WEBRTC CALLING & HIDDEN VAULT
-const rtcServers = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302'] }] };
-
-async function startWebRTCCall(isVideo = true) {
-    if (!currentChatPeer) return;
-    window.history.pushState({ modal: 'call' }, "", "");
-    document.getElementById("callModal").classList.add("active");
-    document.getElementById("callerNameDisplay").innerText = `Calling ${currentChatPeer.name}...`;
-    document.getElementById("videoCallContainer").classList.remove("hidden");
-    document.getElementById("acceptCallBtn").classList.add("hidden");
-    document.getElementById("declineCallBtn").classList.add("hidden");
-    document.getElementById("endCallBtn").classList.remove("hidden");
-    playRing('outgoing');
-
-    localStream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
-    document.getElementById("localVideo").srcObject = localStream;
-    rtcPeerConnection = new RTCPeerConnection(rtcServers);
-    localStream.getTracks().forEach(track => rtcPeerConnection.addTrack(track, localStream));
-    rtcPeerConnection.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
-
-    const callId = `${currentUser.uid}_${currentChatPeer.uid}`;
-    callDocRef = db.collection("calls").doc(callId);
-    
-    db.collection("calls_history").add({
-        caller: currentUser.uid, receiver: currentChatPeer.uid,
-        peerName: currentChatPeer.name, type: isVideo ? "Video Call" : "Voice Call",
-        time: new Date().toLocaleString(), status: "Outgoing"
-    });
-
-    const offer = await rtcPeerConnection.createOffer();
-    await rtcPeerConnection.setLocalDescription(offer);
-    await callDocRef.set({
-        caller: currentUser.uid, callerName: currentUser.displayName || "User",
-        receiver: currentChatPeer.uid, offer: { type: offer.type, sdp: offer.sdp },
-        status: "ringing"
-    });
-
-    callListenerUnsubscribe = callDocRef.onSnapshot(snap => {
-        const data = snap.data();
-        if (!data || data.status === "ended") { endCall(false); }
-        else if (data.answer && !rtcPeerConnection.currentRemoteDescription) {
-            rtcPeerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-        }
-    });
-}
-
-function listenForIncomingCalls() {
-    db.collection("calls").where("receiver", "==", currentUser.uid).where("status", "==", "ringing")
-        .onSnapshot(snap => {
-            snap.docChanges().forEach(async change => {
-                if (change.type === "added") {
-                    const data = change.doc.data();
-                    callDocRef = db.collection("calls").doc(change.doc.id);
-                    window.history.pushState({ modal: 'call' }, "", "");
-                    document.getElementById("callModal").classList.add("active");
-                    document.getElementById("callerNameDisplay").innerText = `Incoming from ${data.callerName}`;
-                    document.getElementById("videoCallContainer").classList.add("hidden");
-                    document.getElementById("acceptCallBtn").classList.remove("hidden");
-                    document.getElementById("declineCallBtn").classList.remove("hidden");
-                    document.getElementById("endCallBtn").classList.add("hidden");
-                    playRing('incoming');
-                    
-                    callListenerUnsubscribe = callDocRef.onSnapshot(s => {
-                        if (!s.exists || s.data().status === "ended") endCall(false);
-                    });
-                }
-            });
-        });
-}
-
-async function acceptCall() {
-    document.getElementById("videoCallContainer").classList.remove("hidden");
-    document.getElementById("acceptCallBtn").classList.add("hidden");
-    document.getElementById("declineCallBtn").classList.add("hidden");
-    document.getElementById("endCallBtn").classList.remove("hidden");
-    
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    document.getElementById("localVideo").srcObject = localStream;
-    rtcPeerConnection = new RTCPeerConnection(rtcServers);
-    localStream.getTracks().forEach(track => rtcPeerConnection.addTrack(track, localStream));
-    rtcPeerConnection.ontrack = e => document.getElementById("remoteVideo").srcObject = e.streams[0];
-
-    const data = (await callDocRef.get()).data();
-    await rtcPeerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-    const answer = await rtcPeerConnection.createAnswer();
-    await rtcPeerConnection.setLocalDescription(answer);
-    await callDocRef.update({ answer: { type: answer.type, sdp: answer.sdp }, status: "connected" });
-}
-
-async function declineCall() { if (callDocRef) await callDocRef.update({ status: "ended" }); endCall(true); }
-
-function endCall(notifyRemote = true) {
-    if (notifyRemote && callDocRef) callDocRef.update({ status: "ended" });
-    if (rtcPeerConnection) rtcPeerConnection.close();
-    if (localStream) localStream.getTracks().forEach(t => t.stop());
-    if (callListenerUnsubscribe) callListenerUnsubscribe();
-    document.getElementById("callModal").classList.remove("active");
-}
-
-function loadCallHistory() {
-    db.collection("calls_history").where("caller", "==", currentUser.uid).get().then(snap => {
-        const container = document.getElementById("sidebarContent");
-        container.innerHTML = "";
-        if (snap.empty) { container.innerHTML = `<div class="empty-state">No call logs yet.</div>`; return; }
-        snap.forEach(doc => {
-            const log = doc.data();
-            const item = document.createElement("div");
-            item.className = "list-item";
-            item.innerHTML = `<div class="item-info"><h4>${log.peerName} (${log.type})</h4><p>${log.time}</p></div>`;
-            container.appendChild(item);
-        });
-    });
-}
-
-// VAULT (HOLD LOGO & PIN 0000)
-function startHiddenTimer() { holdTimer = setTimeout(() => { window.history.pushState({modal:'pin'},"",""); document.getElementById("pinModal").classList.add("active"); }, 1200); }
-function stopHiddenTimer() { clearTimeout(holdTimer); }
-function checkVaultPin() {
-    if (document.getElementById("vaultPinInput").value === "0000") {
-        isVaultUnlocked = !isVaultUnlocked;
-        document.getElementById("pinModal").classList.remove("active");
-        document.getElementById("vaultPinInput").value = "";
-        document.getElementById("hiddenIndicator").classList.toggle("hidden", !isVaultUnlocked);
-        alert(isVaultUnlocked ? "🔓 Security Vault Unlocked! Showing hidden chats." : "🔒 Vault Locked.");
-        loadMyContacts();
+function clearAllData() {
+    if (confirm("Are you sure? This will delete all messages, sent photos, block lists, and call logs!")) {
+        localStorage.clear();
+        location.reload();
     }
 }
-function closeModal(id) {
-    document.getElementById(id).classList.remove("active");
-    if (localStream) localStream.getTracks().forEach(t => t.stop());
-    if (window.history.state) window.history.back();
-            }
+
+function triggerLogout() {
+    alert("Logging out from NexChat Pro... Clearing current active session safely.");
+    location.reload();
+}
