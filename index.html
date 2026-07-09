@@ -2,223 +2,148 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P Realm — Encrypted Messenger</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexChat Pro - Colorful & Secure</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 </head>
-<body>
-
-    <div id="authSection" class="auth-wrapper">
-        <div class="auth-card">
-            <div class="brand-header">
-                <div class="brand-logo"><i class="fa-solid fa-shield-halved text-purple"></i></div>
-                <h2>P2P Realm</h2>
-                <p>Decentralized Encrypted Communication</p>
+<body class="theme-neon"> <div class="app-container">
+        
+        <aside class="sidebar">
+            <div class="user-profile">
+                <div class="avatar"><i class="fa-solid fa-user-astronaut"></i></div>
+                <div class="profile-info">
+                    <h4>Nani Sundara</h4>
+                    <span class="status"><i class="fa-solid fa-circle dot-online"></i> Online</span>
+                </div>
             </div>
             
-            <form id="authForm" onsubmit="handleAuth(event)">
-                <div id="nameGroup" class="input-group hidden">
-                    <label>Full Name</label>
-                    <input type="text" id="userName" placeholder="e.g. Naveen Sundara" oninput="generateUniqueId()">
-                </div>
-
-                <div id="idPreviewGroup" class="id-preview hidden">
-                    <span>Your Realm Handle:</span>
-                    <strong id="generatedId">#user_0000</strong>
-                </div>
-
-                <div class="input-group">
-                    <label>Email Address</label>
-                    <input type="email" id="userEmail" placeholder="name@domain.com" required>
-                </div>
-
-                <div class="input-group">
-                    <label>Password</label>
-                    <input type="password" id="userPass" placeholder="••••••••••••" required>
-                </div>
-
-                <button type="submit" class="btn-primary" id="authSubmitBtn">Sign In</button>
-            </form>
-            <p class="auth-switch" onclick="toggleAuthMode()" id="authSwitchText">Don't have an account? Create one</p>
-        </div>
-    </div>
-
-    <div id="appWorkspace" class="workspace hidden">
-        
-        <aside class="sidebar-area" id="sidebarArea">
-            <header class="sidebar-header">
-                <div class="logo-area" onmousedown="startHiddenTimer()" onmouseup="stopHiddenTimer()" ontouchstart="startHiddenTimer()" ontouchend="stopHiddenTimer()">
-                    <div class="logo-icon"><i class="fa-solid fa-layer-group"></i></div>
-                    <span class="logo-text">P2P <span id="hiddenIndicator" class="vault-badge hidden"><i class="fa-solid fa-lock"></i> Vault</span></span>
-                </div>
-                <div class="header-actions">
-                    <button class="icon-btn" onclick="switchTab('search')" title="Add Contact"><i class="fa-solid fa-user-plus"></i></button>
-                    <button class="icon-btn relative" onclick="switchTab('notifications')" title="Requests">
-                        <i class="fa-solid fa-bell"></i>
-                        <span id="notifBadge" class="badge-dot hidden">0</span>
-                    </button>
-                    <div class="user-avatar-wrap" onclick="document.getElementById('dpUploadInput').click()" title="Click to change DP">
-                        <img id="myDp" src="https://api.dicebear.com/7.x/initials/svg?seed=P2P" alt="ME">
-                        <span class="status-dot"></span>
-                        <input type="file" id="dpUploadInput" hidden accept="image/*" onchange="uploadCustomDP(event)">
-                    </div>
-                </div>
-            </header>
-
-            <nav class="nav-tabs">
-                <button class="tab-btn active" onclick="switchTab('chats')"><i class="fa-solid fa-message"></i> Chats</button>
-                <button class="tab-btn" onclick="switchTab('calls')"><i class="fa-solid fa-phone"></i> Calls</button>
-                <button class="tab-btn" onclick="switchTab('glimpse')"><i class="fa-solid fa-bolt text-yellow"></i> Glimpse</button>
-                <button class="tab-btn" onclick="openLiveModal()"><i class="fa-solid fa-tower-broadcast text-red"></i> Live</button>
+            <nav class="side-menu">
+                <button class="menu-item active" onclick="switchTab('chat-view', 'Chat Hub')"><i class="fa-solid fa-comments"></i> Chat Hub</button>
+                <button class="menu-item" onclick="switchTab('contacts-view', 'Private Contacts')"><i class="fa-solid fa-user-lock"></i> Private Chats</button>
+                <button class="menu-item" onclick="switchTab('shared-view', 'Media Vault')"><i class="fa-solid fa-photo-film"></i> Shared Data</button>
+                <button class="menu-item" onclick="switchTab('calls-view', 'Call History')"><i class="fa-solid fa-phone-volume"></i> Call History</button>
+                <button class="menu-item" onclick="switchTab('settings-view', 'Settings & Themes')"><i class="fa-solid fa-sliders"></i> Settings</button>
             </nav>
 
-            <div id="searchBarContainer" class="search-box hidden">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="searchInput" placeholder="Search by #uniqueId to send request..." oninput="searchUsersToAdd()">
-            </div>
-
-            <div id="liveBannerArea" class="live-banner hidden" onclick="joinActiveLiveStream()">
-                <span class="pulse-red"></span>
-                <span id="liveBannerText">🔴 Someone is Live! Click to Watch</span>
-            </div>
-
-            <div id="sidebarContent" class="list-content">
-                <div class="empty-state">Loading your realm...</div>
-            </div>
+            <button class="logout-btn" onclick="triggerLogout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
         </aside>
 
-        <main class="chat-room-area" id="chatRoomArea">
-            <div id="emptyChatState" class="empty-room-state">
-                <div class="empty-icon"><i class="fa-solid fa-shield-cat text-purple"></i></div>
-                <h3>End-to-End Encrypted Realm</h3>
-                <p>Select a verified contact from the sidebar to start high-security messaging, WebRTC calling, or Live streaming.</p>
-            </div>
-
-            <div id="activeChatContainer" class="active-chat hidden">
-                <header class="chat-header">
-                    <div class="chat-header-left">
-                        <button class="back-btn" onclick="handleBackButton()"><i class="fa-solid fa-arrow-left"></i></button>
-                        <img id="activePeerDp" src="" alt="">
-                        <div class="peer-details">
-                            <h4 id="activePeerName">Contact Name</h4>
-                            <span id="activePeerStatus" class="status-text">Online</span>
-                        </div>
-                    </div>
-                    <div class="chat-header-right">
-                        <button onclick="startWebRTCCall(false)" title="Voice Call"><i class="fa-solid fa-phone"></i></button>
-                        <button onclick="startWebRTCCall(true)" title="Video Call"><i class="fa-solid fa-video text-green"></i></button>
-                        <button id="secretToggleBtn" onclick="toggleSecretChat()" title="Move to Vault"><i class="fa-solid fa-lock-open"></i></button>
-                    </div>
-                </header>
-
-                <div id="messagesArea" class="messages-container"></div>
-
-                <footer class="chat-input-bar">
-                    <input type="file" id="mediaUploadInput" hidden accept="image/*" onchange="openMediaSendModal(event)">
-                    <button class="icon-btn-ghost" onclick="document.getElementById('mediaUploadInput').click()"><i class="fa-solid fa-image"></i></button>
-                    <button class="icon-btn-ghost" onclick="switchTab('glimpse')"><i class="fa-solid fa-camera text-yellow"></i></button>
-                    
-                    <div class="input-field-wrapper">
-                        <input type="text" id="messageInputBox" placeholder="Write an encrypted message..." onkeydown="handleEnterSend(event)">
-                    </div>
-                    
-                    <button class="send-btn" onclick="sendMsgAction()"><i class="fa-solid fa-paper-plane"></i></button>
-                </footer>
-            </div>
-        </main>
-    </div>
-
-    <div id="glimpseModal" class="modal-overlay">
-        <div class="glimpse-card">
-            <header class="modal-header">
-                <h3><i class="fa-solid fa-bolt text-yellow"></i> Glimpse Camera</h3>
-                <div class="header-tools">
-                    <button onclick="flipGlimpseCamera()" title="Flip Camera"><i class="fa-solid fa-camera-rotate"></i></button>
-                    <button onclick="closeModal('glimpseModal')"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-            </header>
-            <div class="glimpse-preview-area">
-                <video id="glimpseCamStream" autoplay playsinline muted></video>
-                <div id="glimpseOverlayTags" class="overlay-tags">
-                    <span id="tagTimeDisplay" class="tag-chip hidden"><i class="fa-solid fa-clock"></i> <b id="timeText">12:00 PM</b></span>
-                    <span id="tagLocDisplay" class="tag-chip hidden"><i class="fa-solid fa-location-dot"></i> <b id="locText">Locating...</b></span>
-                    <span id="tagCustomDisplay" class="tag-chip custom-tag hidden"><i class="fa-solid fa-tag"></i> <b id="customTagText"></b></span>
-                </div>
-            </div>
-            <div class="glimpse-controls">
-                <label class="tag-toggle"><input type="checkbox" id="toggleTime" onchange="updateGlimpseTags()"> Time</label>
-                <label class="tag-toggle"><input type="checkbox" id="toggleLoc" onchange="updateGlimpseTags()"> GPS Location</label>
-            </div>
-            <div class="custom-tag-input">
-                <input type="text" id="customStickerInput" placeholder="Add custom text / emoji sticker..." oninput="updateGlimpseTags()">
-            </div>
-            <button class="btn-primary mt-2" onclick="captureAndSendGlimpse()"><i class="fa-solid fa-paper-plane"></i> Snap & Send to Chat</button>
-        </div>
-    </div>
-
-    <div id="liveModal" class="modal-overlay">
-        <div class="live-card">
-            <header class="modal-header">
-                <h3><i class="fa-solid fa-tower-broadcast text-red"></i> Start Private Live Stream</h3>
-                <button onclick="closeModal('liveModal')"><i class="fa-solid fa-xmark"></i></button>
-            </header>
-            <p class="sub-text">Select verified friends who can view your broadcast:</p>
-            <div id="liveFriendsSelector" class="friends-selector-list"></div>
-            <div class="live-preview-box">
-                <video id="livePreviewStream" autoplay playsinline muted></video>
-            </div>
-            <button id="startLiveBtnAction" class="btn-danger w-100 mt-2" onclick="initiateLiveBroadcast()"><i class="fa-solid fa-circle text-white"></i> Go Live Now</button>
-        </div>
-    </div>
-
-    <div id="mediaSendModal" class="modal-overlay">
-        <div class="media-send-card">
-            <header class="modal-header">
-                <h3>Send Encrypted Media</h3>
-                <button onclick="closeModal('mediaSendModal')"><i class="fa-solid fa-xmark"></i></button>
-            </header>
-            <div class="media-preview-box">
-                <img id="mediaPreviewImg" src="" alt="">
-            </div>
-            <div class="media-options">
-                <label class="tag-toggle"><input type="checkbox" id="mediaLocToggle"> Attach Exact GPS Coordinates</label>
-                <input type="text" id="mediaCaptionInput" placeholder="Add a caption...">
-            </div>
-            <button class="btn-primary mt-2" onclick="confirmSendMedia()"><i class="fa-solid fa-paper-plane"></i> Send Image</button>
-        </div>
-    </div>
-
-    <div id="callModal" class="modal-overlay">
-        <div class="call-card">
-            <div id="callStatusWaves" class="ring-waves"></div>
-            <img id="callerDp" src="https://api.dicebear.com/7.x/initials/svg?seed=Call" alt="Caller">
-            <h3 id="callerNameDisplay">Incoming Call...</h3>
-            <span id="callQualityBadge" class="quality-badge">End-to-End Encrypted • WebRTC HD</span>
+        <main class="main-content">
             
-            <div id="videoCallContainer" class="video-grid hidden">
-                <video id="remoteVideo" autoplay playsinline></video>
-                <video id="localVideo" autoplay playsinline muted onclick="switchVideoPIP()"></video>
-            </div>
+            <header class="app-header">
+                <div class="left-header">
+                    <button class="back-nav-btn" onclick="goBack()"><i class="fa-solid fa-chevron-left"></i> Back</button>
+                    <h3 id="current-panel-title">Chat Hub</h3>
+                    <span id="chat-mode-badge" class="badge public-badge">Public Room</span>
+                </div>
+                
+                <div class="header-actions">
+                    <button id="mode-switch-btn" class="action-btn colorful-btn" onclick="toggleChatMode()" title="Switch Public/Private">
+                        <i class="fa-solid fa-shield-halved"></i> <span>Switch to Private</span>
+                    </button>
+                    <button id="block-btn" class="action-btn danger-btn" style="display:none;" onclick="toggleBlockUser()" title="Block/Unblock User">
+                        <i class="fa-solid fa-ban"></i> <span>Block</span>
+                    </button>
+                    <button class="icon-btn" onclick="logCall('Voice Call')" title="Voice Call"><i class="fa-solid fa-phone"></i></button>
+                    <button class="icon-btn" onclick="logCall('Video Call')" title="Video Call"><i class="fa-solid fa-video"></i></button>
+                </div>
+            </header>
 
-            <div class="call-actions">
-                <button id="declineCallBtn" onclick="declineCall()" class="btn-call-decline"><i class="fa-solid fa-phone-slash"></i> Decline</button>
-                <button id="acceptCallBtn" onclick="acceptCall()" class="btn-call-accept"><i class="fa-solid fa-phone"></i> Accept</button>
-                <button id="endCallBtn" onclick="endCall(true)" class="btn-call-decline hidden"><i class="fa-solid fa-phone-slash"></i> Hang Up</button>
-            </div>
-        </div>
-    </div>
+            <section id="chat-view" class="tab-panel active">
+                <div class="chat-banner" id="chat-status-banner">
+                    <i class="fa-solid fa-globe"></i> You are currently chatting in the <b>Public Room</b>. Everyone can see these messages.
+                </div>
+                
+                <div class="chat-messages" id="chat-box">
+                    </div>
+                
+                <div class="interactive-chat-bar" id="input-bar-container">
+                    <label for="image-upload" class="attach-btn" title="Send Photo"><i class="fa-solid fa-camera-retro"></i></label>
+                    <input type="file" id="image-upload" accept="image/*" style="display:none;" onchange="sendPhoto(event)">
+                    
+                    <input type="text" id="msg-input" placeholder="Type a colorful message..." onkeypress="handleKeyPress(event)">
+                    <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+                <div id="blocked-notice" class="blocked-bar" style="display:none;">
+                    <i class="fa-solid fa-lock"></i> You have blocked this user. Unblock to send messages or photos.
+                </div>
+            </section>
 
-    <div id="pinModal" class="modal-overlay">
-        <div class="pin-card">
-            <h3><i class="fa-solid fa-lock text-purple"></i> Security Vault</h3>
-            <p>Enter 4-Digit Secret PIN to unlock hidden conversations.</p>
-            <input type="password" id="vaultPinInput" maxlength="4" placeholder="••••" oninput="checkVaultPin()">
-        </div>
+            <section id="contacts-view" class="tab-panel">
+                <div class="panel-header-desc">
+                    <h2><i class="fa-solid fa-user-shield"></i> Private Chat Contacts</h2>
+                    <p>Select a contact to start an end-to-end encrypted private chat or manage block status.</p>
+                </div>
+                <div class="contacts-grid">
+                    <div class="contact-card" onclick="openPrivateChat('Alex', 'alex_01')">
+                        <div class="contact-avatar" style="background:#ff007f;"><i class="fa-solid fa-user"></i></div>
+                        <div class="contact-info">
+                            <h4>Alex (Developer)</h4>
+                            <p id="status-alex_01">Available for Glimpse chat</p>
+                        </div>
+                        <button class="open-chat-btn"><i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                    <div class="contact-card" onclick="openPrivateChat('Siri Tech', 'siri_02')">
+                        <div class="contact-avatar" style="background:#00f0ff;"><i class="fa-solid fa-user-astronaut"></i></div>
+                        <div class="contact-info">
+                            <h4>Siri Tech</h4>
+                            <p id="status-siri_02">Available for Glimpse chat</p>
+                        </div>
+                        <button class="open-chat-btn"><i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                    <div class="contact-card" onclick="openPrivateChat('Vikram AP', 'vikram_03')">
+                        <div class="contact-avatar" style="background:#7000ff;"><i class="fa-solid fa-user-ninja"></i></div>
+                        <div class="contact-info">
+                            <h4>Vikram AP</h4>
+                            <p id="status-vikram_03">Available for Glimpse chat</p>
+                        </div>
+                        <button class="open-chat-btn"><i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="shared-view" class="tab-panel">
+                <div class="panel-header-desc">
+                    <h2><i class="fa-solid fa-images"></i> Shared Media Vault</h2>
+                    <p>All sent and received photos from both Public and Private chats are securely stored here.</p>
+                </div>
+                <div class="shared-grid" id="media-vault-grid">
+                    </div>
+            </section>
+
+            <section id="calls-view" class="tab-panel">
+                <div class="panel-header-desc">
+                    <h2><i class="fa-solid fa-phone-flip"></i> Call Log Metrics</h2>
+                    <p>Track your encrypted voice and video call analytics.</p>
+                </div>
+                <div class="calls-list-container" id="call-logs-container">
+                    </div>
+            </section>
+
+            <section id="settings-view" class="tab-panel">
+                <div class="panel-header-desc">
+                    <h2><i class="fa-solid fa-palette"></i> Interface & Colorful Themes</h2>
+                    <p>Customize your visual aesthetics and manage app data.</p>
+                </div>
+                <div class="settings-options-card">
+                    <div class="setting-row">
+                        <label><i class="fa-solid fa-paint-roller"></i> Color Theme Mode</label>
+                        <select id="theme-selector" onchange="applyTheme()">
+                            <option value="theme-neon">Neon Colorful Vibrant (Recommended)</option>
+                            <option value="theme-cyber">Cyber Dark AMOLED</option>
+                            <option value="theme-sunset">Sunset Orange & Purple</option>
+                            <option value="theme-light">Clean Quartz Light</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label><i class="fa-solid fa-trash-can"></i> Reset App Memory</label>
+                        <button onclick="clearAllData()" class="danger-action-btn">Clear All Chats & Cache</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
     </div>
 
     <script src="script.js"></script>
